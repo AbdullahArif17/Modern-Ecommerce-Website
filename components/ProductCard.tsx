@@ -81,7 +81,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="flex flex-col gap-3 mb-6">
           <div className="flex items-center justify-between gap-1">
             <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-primary/40 truncate">
-              {product.brand || product.category?.replace('-', ' ') || 'Shop'}
+              {product.brand || (typeof product.category === 'string' ? product.category.replace('-', ' ') : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : 'Shop'))}
             </span>
             <div className={`flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full ${stock.color} border border-current/20 backdrop-blur-sm shrink-0`}>
               <stock.icon className="w-2 h-2 md:w-2.5 md:h-2.5" />

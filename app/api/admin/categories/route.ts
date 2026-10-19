@@ -26,7 +26,7 @@ export async function GET() {
       ORDER BY c.sort_order ASC, c.created_at ASC
     `;
 
-    const categories = rows.map(r => ({
+    const categories = rows.map((r: any) => ({
       ...formatCategoryRow(r),
       productCount: Number(r.product_count) || 0,
     }));

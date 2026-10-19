@@ -1,13 +1,18 @@
 import { neon } from '@neondatabase/serverless';
-import { Product, Category } from './products';
+import { Product, Category, products as fallbackProducts } from './products';
 
 const databaseUrl = process.env.DATABASE_URL;
 
-if (!databaseUrl) {
-  console.warn('DATABASE_URL is not set in environment variables.');
+export const hasDatabaseUrl = Boolean(databaseUrl && databaseUrl.trim() !== '');
+
+if (!hasDatabaseUrl) {
+  console.warn('DATABASE_URL is not set in environment variables. Falling back to static mock catalog.');
 }
 
-export const sql = neon(databaseUrl || '');
+// Only call neon() if databaseUrl is valid to prevent build-time crashes
+export const sql = hasDatabaseUrl 
+  ? neon(databaseUrl!) 
+  : ((..._args: any[]) => Promise.resolve([])) as any;
 
 // Helper to format a DB product row into the frontend Product shape
 export function formatProductRow(row: any): Product {
@@ -148,98 +153,145 @@ export function formatCategoryRow(row: any): Category {
 // ──────────────── DATABASE QUERIES ────────────────
 
 export async function dbGetProducts(): Promise<Product[]> {
+  if (!hasDatabaseUrl) {
+    return fallbackProducts;
+  }
   try {
     const rows = await sql`
       SELECT * FROM products 
       WHERE is_active = true 
       ORDER BY sort_order ASC, created_at DESC
     `;
-    return rows.map(formatProductRow);
+    return rows.length > 0 ? rows.map(formatProductRow) : fallbackProducts;
   } catch (error) {
     console.error('[Neon dbGetProducts error]:', error);
-    return [];
+    return fallbackProducts;
   }
 }
 
 export async function dbGetAllProductsAdmin(): Promise<Product[]> {
+  if (!hasDatabaseUrl) {
+    return fallbackProducts;
+  }
   try {
     const rows = await sql`
       SELECT * FROM products 
       ORDER BY sort_order ASC, created_at DESC
     `;
-    return rows.map(formatProductRow);
+    return rows.length > 0 ? rows.map(formatProductRow) : fallbackProducts;
   } catch (error) {
     console.error('[Neon dbGetAllProductsAdmin error]:', error);
-    return [];
+    return fallbackProducts;
   }
 }
 
 export async function dbGetFeaturedProducts(): Promise<Product[]> {
+  if (!hasDatabaseUrl) {
+    return fallbackProducts.slice(0, 3);
+  }
   try {
     const rows = await sql`
       SELECT * FROM products 
       WHERE featured = true AND is_active = true 
       ORDER BY sort_order ASC, created_at DESC
     `;
-    return rows.map(formatProductRow);
+    if (rows.length > 0) {
+      return rows.map(formatProductRow);
+    }
+    // Fallback if no products are explicitly marked featured: get first active products
+    const fallbackRows = await sql`
+      SELECT * FROM products 
+      WHERE is_active = true 
+      ORDER BY sort_order ASC, created_at DESC 
+      LIMIT 6
+    `;
+    return fallbackRows.length > 0 ? fallbackRows.map(formatProductRow) : fallbackProducts.slice(0, 3);
   } catch (error) {
     console.error('[Neon dbGetFeaturedProducts error]:', error);
-    return [];
+    return fallbackProducts.slice(0, 3);
   }
 }
 
 export async function dbGetProductBySlug(slug: string): Promise<Product | null> {
+  if (!hasDatabaseUrl) {
+    return fallbackProducts.find(p => p.slug === slug || p.id === slug) || null;
+  }
   try {
     const rows = await sql`
       SELECT * FROM products 
       WHERE (slug = ${slug} OR id = ${slug}) 
       LIMIT 1
     `;
-    if (rows.length === 0) return null;
+    if (rows.length === 0) {
+      return fallbackProducts.find(p => p.slug === slug || p.id === slug) || null;
+    }
     return formatProductRow(rows[0]);
   } catch (error) {
     console.error('[Neon dbGetProductBySlug error]:', error);
-    return null;
+    return fallbackProducts.find(p => p.slug === slug || p.id === slug) || null;
   }
 }
 
 export async function dbGetProductsByCategory(categorySlug: string): Promise<Product[]> {
+  if (!hasDatabaseUrl) {
+    return fallbackProducts.filter(p => p.category === categorySlug || p.categorySlug === categorySlug);
+  }
   try {
     const rows = await sql`
       SELECT * FROM products 
       WHERE (category_slug = ${categorySlug} OR category = ${categorySlug}) AND is_active = true 
       ORDER BY sort_order ASC, created_at DESC
     `;
-    return rows.map(formatProductRow);
+    return rows.length > 0 ? rows.map(formatProductRow) : fallbackProducts.filter(p => p.category === categorySlug || p.categorySlug === categorySlug);
   } catch (error) {
     console.error('[Neon dbGetProductsByCategory error]:', error);
-    return [];
+    return fallbackProducts.filter(p => p.category === categorySlug || p.categorySlug === categorySlug);
   }
 }
 
 export async function dbGetCategories(): Promise<Category[]> {
+  const defaultCategories: Category[] = [
+    { _id: 'cat-1', title: 'Smart Watches', slug: 'smart-watches', image: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&q=80&w=800', showInHero: true },
+    { _id: 'cat-2', title: 'Earbuds', slug: 'earbuds', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=800', showInHero: true },
+    { _id: 'cat-3', title: 'Headphones', slug: 'headphones', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=800', showInHero: true },
+    { _id: 'cat-4', title: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&q=80&w=800', showInHero: true },
+  ];
+
+  if (!hasDatabaseUrl) {
+    return defaultCategories;
+  }
   try {
     const rows = await sql`
       SELECT * FROM categories 
       ORDER BY sort_order ASC, created_at ASC
     `;
-    return rows.map(formatCategoryRow);
+    return rows.length > 0 ? rows.map(formatCategoryRow) : defaultCategories;
   } catch (error) {
     console.error('[Neon dbGetCategories error]:', error);
-    return [];
+    return defaultCategories;
   }
 }
 
 export async function dbGetHeroCategories(): Promise<Category[]> {
+  const defaultHeroCategories: Category[] = [
+    { _id: 'cat-1', title: 'Smart Watches', slug: 'smart-watches', image: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&q=80&w=800', showInHero: true },
+    { _id: 'cat-2', title: 'Earbuds', slug: 'earbuds', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=800', showInHero: true },
+    { _id: 'cat-3', title: 'Headphones', slug: 'headphones', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=800', showInHero: true },
+    { _id: 'cat-4', title: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&q=80&w=800', showInHero: true },
+  ];
+
+  if (!hasDatabaseUrl) {
+    return defaultHeroCategories;
+  }
   try {
     const rows = await sql`
       SELECT * FROM categories 
       WHERE show_in_hero = true 
       ORDER BY sort_order ASC, created_at ASC
     `;
-    return rows.map(formatCategoryRow);
+    return rows.length > 0 ? rows.map(formatCategoryRow) : defaultHeroCategories;
   } catch (error) {
     console.error('[Neon dbGetHeroCategories error]:', error);
-    return [];
+    return defaultHeroCategories;
   }
 }

@@ -66,12 +66,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <Link href="/" className="hover:text-primary transition-colors">Home</Link>
             <span>/</span>
             <Link href="/products" className="hover:text-primary transition-colors">Products</Link>
-            {product.category && (
-              <>
-                <span>/</span>
-                <span className="hover:text-primary transition-colors">{product.category}</span>
-              </>
-            )}
+            {(() => {
+              const catTitle = typeof product.category === 'string' ? product.category : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : '');
+              if (!catTitle) return null;
+              return (
+                <>
+                  <span>/</span>
+                  <span className="hover:text-primary transition-colors">{catTitle}</span>
+                </>
+              );
+            })()}
             <span>/</span>
             <span className="text-foreground font-medium truncate max-w-[200px]">{product.title || product.name}</span>
           </div>
@@ -96,7 +100,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   <span className="text-xs font-bold uppercase tracking-widest text-primary/60">{product.brand}</span>
                 )}
                 <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground/50 uppercase tracking-widest px-2 py-0.5 bg-secondary rounded-full">
-                  {product.category?.replace('-', ' ') || 'Uncategorized'}
+                  {typeof product.category === 'string' ? product.category.replace('-', ' ') : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : 'Uncategorized')}
                 </span>
                 {product.productTags?.map((tag: string) => (
                   <span

@@ -8,6 +8,7 @@ import {
   dbGetCategories, 
   dbGetHeroCategories 
 } from './db';
+import { products as fallbackProducts } from './products';
 
 const rawProjectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'jtech-mart-prod';
 export const projectId = /^[a-z0-9-]+$/i.test(rawProjectId) ? rawProjectId : 'jtech-mart-prod';
@@ -73,14 +74,24 @@ export async function getProducts() {
   // Fallback to Sanity if configured
   if (projectId && projectId !== 'replace_with_your_project_id') {
     try {
-      const products = await client.fetch(`*[_type == "product" && isActive != false]`);
-      return products || [];
+      const sanityProducts = await client.fetch(`*[_type == "product" && isActive != false]{
+        ...,
+        "category": coalesce(category->title, category, "General"),
+        "categorySlug": coalesce(category->slug.current, categorySlug, "general")
+      }`);
+      if (sanityProducts && sanityProducts.length > 0) {
+        return sanityProducts.map((p: any) => ({
+          ...p,
+          category: typeof p.category === 'string' ? p.category : (p.category?.title || 'General'),
+          categorySlug: typeof p.categorySlug === 'string' ? p.categorySlug : (p.category?.slug?.current || 'general'),
+        }));
+      }
     } catch (e) {
       console.error('[getProducts] Fallback Sanity error:', e);
     }
   }
 
-  return [];
+  return fallbackProducts;
 }
 
 export async function getFeaturedProducts() {
@@ -91,7 +102,7 @@ export async function getFeaturedProducts() {
     console.error('[getFeaturedProducts] Error from Neon:', error);
   }
 
-  return [];
+  return fallbackProducts.slice(0, 3);
 }
 
 export async function getProduct(slug: string) {

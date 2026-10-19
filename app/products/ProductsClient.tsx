@@ -162,8 +162,9 @@ function ProductsContent({ products }: ProductsClientProps) {
     // Map of slug -> title to ensure unique categories based on slugs
     const catMap = new Map<string, string>();
     products.forEach(p => {
-      const slug = p.categorySlug || (p.category ? p.category.toLowerCase().replace(/\s+/g, '-') : null);
-      const title = p.category;
+      const catString = typeof p.category === 'string' ? p.category : (typeof (p.category as any)?.title === 'string' ? (p.category as any).title : '');
+      const slug = p.categorySlug || (catString ? catString.toLowerCase().replace(/\s+/g, '-') : null);
+      const title = catString;
       if (slug && title) {
         catMap.set(slug, title);
       }
@@ -179,17 +180,21 @@ function ProductsContent({ products }: ProductsClientProps) {
     let filtered = activeCategory === 'all' 
       ? products 
       : products.filter(product => {
-          const slug = product.categorySlug || (product.category ? product.category.toLowerCase().replace(/\s+/g, '-') : '');
+          const catString = typeof product.category === 'string' ? product.category : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : '');
+          const slug = product.categorySlug || (catString ? catString.toLowerCase().replace(/\s+/g, '-') : '');
           return slug === activeCategory;
       });
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(product => 
-        (product.title || product.name || '').toLowerCase().includes(query) ||
-        (product.description || '').toLowerCase().includes(query) ||
-        (product.category || '').toLowerCase().includes(query)
-      );
+      filtered = filtered.filter(product => {
+        const catString = typeof product.category === 'string' ? product.category : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : '');
+        return (
+          (product.title || product.name || '').toLowerCase().includes(query) ||
+          (product.description || '').toLowerCase().includes(query) ||
+          catString.toLowerCase().includes(query)
+        );
+      });
     }
 
     // Sort products
