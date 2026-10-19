@@ -5,6 +5,9 @@ import { FeaturedSection } from '@/components/FeaturedSection';
 import { BenefitsSection } from '@/components/BenefitsSection';
 import { NewsletterSection } from '@/components/NewsletterSection';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function Home() {
   let featuredProducts: Product[] = await getFeaturedProducts();
   const categories: Category[] = await getHeroCategories();

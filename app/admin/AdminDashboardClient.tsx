@@ -154,19 +154,21 @@ export default function AdminDashboardClient({
   // Toggle Product Active / Inactive
   const toggleProductActive = async (product: Product) => {
     const updatedStatus = !product.isActive;
+    const prodId = product._id || product.id;
     try {
-      const res = await fetch(`/api/admin/products/${product._id}`, {
+      const res = await fetch(`/api/admin/products/${prodId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: updatedStatus }),
       });
       if (res.ok) {
         setProducts((prev) =>
-          prev.map((p) => (p._id === product._id ? { ...p, isActive: updatedStatus } : p))
+          prev.map((p) => ((p._id === prodId || p.id === prodId) ? { ...p, isActive: updatedStatus } : p))
         );
         showToast(
           `Product ${updatedStatus ? 'published to storefront' : 'hidden from storefront'}`
         );
+        router.refresh();
       }
     } catch {
       showToast('Failed to update product status', 'error');
@@ -176,19 +178,21 @@ export default function AdminDashboardClient({
   // Toggle Product Featured
   const toggleProductFeatured = async (product: Product) => {
     const updatedFeatured = !product.featured;
+    const prodId = product._id || product.id;
     try {
-      const res = await fetch(`/api/admin/products/${product._id}`, {
+      const res = await fetch(`/api/admin/products/${prodId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ featured: updatedFeatured }),
       });
       if (res.ok) {
         setProducts((prev) =>
-          prev.map((p) => (p._id === product._id ? { ...p, featured: updatedFeatured } : p))
+          prev.map((p) => ((p._id === prodId || p.id === prodId) ? { ...p, featured: updatedFeatured } : p))
         );
         showToast(
           `Product ${updatedFeatured ? 'added to homepage featured' : 'removed from featured'}`
         );
+        router.refresh();
       }
     } catch {
       showToast('Failed to update featured status', 'error');
@@ -204,16 +208,20 @@ export default function AdminDashboardClient({
       if (type === 'product') {
         const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
         if (res.ok) {
-          setProducts((prev) => prev.filter((p) => p._id !== id));
+          setProducts((prev) => prev.filter((p) => p._id !== id && p.id !== id));
           showToast('Product deleted permanently');
+          await refreshData();
+          router.refresh();
         } else {
           showToast('Failed to delete product', 'error');
         }
       } else {
         const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
         if (res.ok) {
-          setCategories((prev) => prev.filter((c) => c._id !== id));
+          setCategories((prev) => prev.filter((c) => c._id !== id && (c as any).id !== id));
           showToast('Category deleted successfully');
+          await refreshData();
+          router.refresh();
         } else {
           showToast('Failed to delete category', 'error');
         }
@@ -1108,10 +1116,16 @@ export default function AdminDashboardClient({
             setIsProductModalOpen(false);
             setEditingProduct(null);
           }}
-          onSaved={(savedProduct) => {
+          onSaved={async (savedProduct) => {
+            await refreshData();
+            router.refresh();
             if (editingProduct) {
               setProducts((prev) =>
-                prev.map((p) => (p._id === savedProduct._id ? savedProduct : p))
+                prev.map((p) =>
+                  p._id === savedProduct._id || p.id === savedProduct.id || p.slug === savedProduct.slug
+                    ? savedProduct
+                    : p
+                )
               );
               showToast('Product updated successfully');
             } else {
@@ -1134,10 +1148,16 @@ export default function AdminDashboardClient({
             setIsCategoryModalOpen(false);
             setEditingCategory(null);
           }}
-          onSaved={(savedCategory) => {
+          onSaved={async (savedCategory) => {
+            await refreshData();
+            router.refresh();
             if (editingCategory) {
               setCategories((prev) =>
-                prev.map((c) => (c._id === savedCategory._id ? savedCategory : c))
+                prev.map((c) =>
+                  c._id === savedCategory._id || (c as any).id === (savedCategory as any).id || c.slug === savedCategory.slug
+                    ? savedCategory
+                    : c
+                )
               );
               showToast('Category updated successfully');
             } else {
@@ -1332,7 +1352,8 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
     };
 
     try {
-      const url = isEdit ? `/api/admin/products/${product!._id}` : '/api/admin/products';
+      const prodId = product?._id || product?.id;
+      const url = isEdit ? `/api/admin/products/${prodId}` : '/api/admin/products';
       const method = isEdit ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -1732,7 +1753,8 @@ function CategoryFormModal({ category, onClose, onSaved }: CategoryFormModalProp
     };
 
     try {
-      const url = isEdit ? `/api/admin/categories/${category!._id}` : '/api/admin/categories';
+      const catId = category?._id || (category as any)?.id || category?.slug;
+      const url = isEdit ? `/api/admin/categories/${catId}` : '/api/admin/categories';
       const method = isEdit ? 'PUT' : 'POST';
 
       const res = await fetch(url, {

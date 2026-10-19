@@ -15,6 +15,9 @@ const categoryTitles: Record<string, string> = {
   'headphones': 'Headphones',
 }
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params
   const products: Product[] = await getProductsByCategory(slug)

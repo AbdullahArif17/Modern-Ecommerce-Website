@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { sql, formatCategoryRow } from '@/lib/db';
 import { isAuthenticated } from '@/lib/admin-auth';
 
@@ -65,6 +66,12 @@ export async function POST(request: Request) {
         show_in_hero = EXCLUDED.show_in_hero
       RETURNING *
     `;
+
+    try {
+      revalidatePath('/', 'layout');
+      revalidatePath('/products');
+      revalidatePath('/admin');
+    } catch {}
 
     return NextResponse.json({
       success: true,

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { sql, formatProductRow } from '@/lib/db';
 import { isAuthenticated } from '@/lib/admin-auth';
 
@@ -112,13 +113,19 @@ export async function PUT(
         meta_title = COALESCE(${metaTitle}, meta_title),
         meta_description = COALESCE(${metaDescription}, meta_description),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
+      WHERE id = ${id} OR slug = ${id}
       RETURNING *
     `;
 
     if (result.length === 0) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
+
+    try {
+      revalidatePath('/', 'layout');
+      revalidatePath('/products');
+      revalidatePath('/admin');
+    } catch {}
 
     return NextResponse.json({
       success: true,
@@ -140,11 +147,17 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    const result = await sql`DELETE FROM products WHERE id = ${id} RETURNING id`;
+    const result = await sql`DELETE FROM products WHERE id = ${id} OR slug = ${id} RETURNING id`;
     
     if (result.length === 0) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
+
+    try {
+      revalidatePath('/', 'layout');
+      revalidatePath('/products');
+      revalidatePath('/admin');
+    } catch {}
 
     return NextResponse.json({ success: true, id });
   } catch (error: any) {
