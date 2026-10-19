@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { ProductCard } from './ProductCard'
 import { Product } from '@/lib/products'
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
@@ -15,6 +15,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
   const [visibleCount, setVisibleCount] = useState(3)
+  const resumeTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const updateVisibleCount = () => {
@@ -31,6 +32,24 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
 
   const totalSlides = Math.ceil(products.length / visibleCount)
 
+  const pauseAndResumeAutoplay = useCallback(() => {
+    setIsAutoPlaying(false)
+    if (resumeTimerRef.current) {
+      clearTimeout(resumeTimerRef.current)
+    }
+    resumeTimerRef.current = setTimeout(() => {
+      setIsAutoPlaying(true)
+    }, 15000)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimerRef.current) {
+        clearTimeout(resumeTimerRef.current)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     if (!isAutoPlaying || products.length <= visibleCount || totalSlides <= 1) return
 
@@ -43,21 +62,18 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
 
   const goToSlide = useCallback((index: number) => {
     setCurrentIndex(index)
-    setIsAutoPlaying(false)
-    setTimeout(() => setIsAutoPlaying(true), 15000)
-  }, [])
+    pauseAndResumeAutoplay()
+  }, [pauseAndResumeAutoplay])
 
   const goToPrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides)
-    setIsAutoPlaying(false)
-    setTimeout(() => setIsAutoPlaying(true), 15000)
-  }, [totalSlides])
+    pauseAndResumeAutoplay()
+  }, [totalSlides, pauseAndResumeAutoplay])
 
   const goToNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % totalSlides)
-    setIsAutoPlaying(false)
-    setTimeout(() => setIsAutoPlaying(true), 15000)
-  }, [totalSlides])
+    pauseAndResumeAutoplay()
+  }, [totalSlides, pauseAndResumeAutoplay])
 
   if (products.length === 0) {
     return (

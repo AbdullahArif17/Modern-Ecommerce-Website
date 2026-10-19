@@ -52,9 +52,9 @@ export function BenefitsSection() {
             <div className="w-20 h-20 bg-gradient-to-br from-primary/20 via-primary/15 to-primary/10 rounded-2xl flex items-center justify-center shadow-xl text-primary mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
               <ShieldCheck className="w-9 h-9" />
             </div>
-            <h3 className="text-2xl md:text-3xl font-bold mb-4 text-primary">2-Year Warranty</h3>
+            <h3 className="text-2xl md:text-3xl font-bold mb-4 text-primary">1-Year Warranty</h3>
             <p className="text-muted-foreground max-w-xs mx-auto leading-relaxed text-base">
-              We stand by our quality. All products come with a comprehensive 2-year warranty.
+              We stand by our quality. All products come with a comprehensive 1-year official warranty.
             </p>
           </motion.div>
           <motion.div 
@@ -68,9 +68,9 @@ export function BenefitsSection() {
             <div className="w-20 h-20 bg-gradient-to-br from-primary/20 via-primary/15 to-primary/10 rounded-2xl flex items-center justify-center shadow-xl text-primary mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
               <Clock className="w-9 h-9" />
             </div>
-            <h3 className="text-2xl md:text-3xl font-bold mb-4 text-primary">30-Day Returns</h3>
+            <h3 className="text-2xl md:text-3xl font-bold mb-4 text-primary">7-Day Returns</h3>
             <p className="text-muted-foreground max-w-xs mx-auto leading-relaxed text-base">
-              Not satisfied? Return it within 30 days for a full refund, no questions asked.
+              Not satisfied? Return or replace within 7 days with our hassle-free policy.
             </p>
           </motion.div>
         </div>

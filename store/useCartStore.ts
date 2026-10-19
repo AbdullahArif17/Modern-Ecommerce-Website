@@ -2,13 +2,14 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export interface Product {
-    _id: string;
-    name: string;
-    price: number;
-    discountPrice?: number;
-    images: any; // Sanity image or array of images
-    slug: { current: string };
-    description: string;
+  _id: string;
+  name: string;
+  price: number;
+  discountPrice?: number;
+  images?: any[];
+  image?: any;
+  slug: string | { current: string };
+  description?: string;
 }
 
 interface CartItem extends Product {

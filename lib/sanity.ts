@@ -1,43 +1,55 @@
 import { createClient } from 'next-sanity';
 import imageUrlBuilder from '@sanity/image-url';
+import { 
+  dbGetProducts, 
+  dbGetFeaturedProducts, 
+  dbGetProductBySlug, 
+  dbGetProductsByCategory, 
+  dbGetCategories, 
+  dbGetHeroCategories 
+} from './db';
 
-function assertValue<T>(v: T | undefined, errorMessage: string): T {
-  if (v === undefined) {
-    throw new Error(errorMessage)
-  }
-  return v
-} 
-
-
-export const projectId = assertValue(
-  process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
-  'Missing environment variable: NEXT_PUBLIC_SANITY_PROJECT_ID'
-);
-
-export const dataset = assertValue(
-  process.env.NEXT_PUBLIC_SANITY_DATASET,
-  'Missing environment variable: NEXT_PUBLIC_SANITY_DATASET'
-);
-
-export const apiVersion = '2023-01-01'; // or your specific version
+const rawProjectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'jtech-mart-prod';
+export const projectId = /^[a-z0-9-]+$/i.test(rawProjectId) ? rawProjectId : 'jtech-mart-prod';
+export const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
+export const apiVersion = '2023-01-01';
 
 export const client = createClient({
-  projectId,
+  projectId: projectId || 'demo',
   dataset,
   apiVersion,
-  useCdn: false, // Disable CDN to always get fresh data after publishing
+  useCdn: true,
 });
 
 const builder = imageUrlBuilder(client);
 
 export function urlFor(source: any) {
-  return builder.image(source);
+  if (!source) {
+    return { url: () => '/placeholder.jpg' };
+  }
+  if (typeof source === 'string') {
+    return { url: () => source };
+  }
+  if (source.url && typeof source.url === 'string') {
+    return { url: () => source.url };
+  }
+  if (source.asset?._ref || source._type === 'image') {
+    try {
+      return builder.image(source);
+    } catch {
+      return { url: () => '/placeholder.jpg' };
+    }
+  }
+  return { url: () => '/placeholder.jpg' };
 }
 
 // Helper function to get image URL from product
 export function getProductImageUrl(product: { images?: any[]; image?: any }): string {
   if (product.images && product.images.length > 0 && product.images[0]) {
-    return urlFor(product.images[0]).url();
+    const first = product.images[0];
+    if (typeof first === 'string') return first;
+    if (first.url) return first.url;
+    return urlFor(first).url();
   }
   if (product.image) {
     if (typeof product.image === 'string') {
@@ -48,139 +60,80 @@ export function getProductImageUrl(product: { images?: any[]; image?: any }): st
   return '/placeholder.jpg';
 }
 
-// Shared projection for product queries
-const productProjection = `{
-  _id,
-  title,
-  "name": coalesce(title, name),
-  brand,
-  sku,
-  price,
-  discountPrice,
-  description,
-  longDescription,
-  "slug": coalesce(slug.current, _id),
-  "category": coalesce(category->title, category),
-  "categorySlug": category->slug.current,
-  images,
-  videoUrl,
-  featured,
-  isActive,
-  sortOrder,
-  features,
-  specifications,
-  whatsInTheBox,
-  warranty,
-  weight,
-  colors,
-  sizes,
-  stockQuantity,
-  stockStatus,
-  reviewCount,
-  rating,
-  productTags,
-  metaTitle,
-  metaDescription,
-  _createdAt
-}`;
+// ──────────────── FETCH FUNCTIONS (NEON FIRST, SANITY FALLBACK) ────────────────
 
-// GROQ Queries
-export const productsQuery = `*[_type == "product" && isActive != false] | order(coalesce(sortOrder, 0) asc, _createdAt desc) ${productProjection}`;
-
-export const featuredProductsQuery = `*[_type == "product" && featured == true && isActive != false] | order(coalesce(sortOrder, 0) asc, _createdAt desc) ${productProjection}`;
-
-export const productBySlugQuery = `*[_type == "product" && (slug.current == $slug || _id == $slug)][0] ${productProjection}`;
-
-export const productsByCategoryQuery = `*[_type == "product" && category->slug.current == $categorySlug && isActive != false] | order(coalesce(sortOrder, 0) asc, _createdAt desc) ${productProjection}`;
-
-export const categoriesQuery = `*[_type == "category"] | order(coalesce(sortOrder, 0) asc) {
-  _id,
-  title,
-  "slug": slug.current,
-  description,
-  image,
-  sortOrder,
-  showInHero
-}`;
-
-export const heroCategoriesQuery = `*[_type == "category" && showInHero == true] | order(coalesce(sortOrder, 0) asc) {
-  _id,
-  title,
-  "slug": slug.current,
-  image
-}`;
-
-// Fetch Functions
 export async function getProducts() {
   try {
-    const products = await client.fetch(productsQuery, {}, {
-      next: { revalidate: 60 },
-    });
-    return products || [];
+    const products = await dbGetProducts();
+    if (products && products.length > 0) return products;
   } catch (error) {
-    console.error('Error fetching products:', error);
-    return [];
+    console.error('[getProducts] Error from Neon:', error);
   }
+
+  // Fallback to Sanity if configured
+  if (projectId && projectId !== 'replace_with_your_project_id') {
+    try {
+      const products = await client.fetch(`*[_type == "product" && isActive != false]`);
+      return products || [];
+    } catch (e) {
+      console.error('[getProducts] Fallback Sanity error:', e);
+    }
+  }
+
+  return [];
 }
 
 export async function getFeaturedProducts() {
   try {
-    const products = await client.fetch(featuredProductsQuery, {}, {
-      next: { revalidate: 60 },
-    });
-    return products || [];
+    const products = await dbGetFeaturedProducts();
+    if (products && products.length > 0) return products;
   } catch (error) {
-    console.error('Error fetching featured products:', error);
-    return [];
+    console.error('[getFeaturedProducts] Error from Neon:', error);
   }
+
+  return [];
 }
 
 export async function getProduct(slug: string) {
   try {
-    const product = await client.fetch(productBySlugQuery, { slug }, {
-      next: { revalidate: 60 },
-    });
-    return product;
-  } catch (error: any) {
-    console.error(`[getProduct] Error: ${error.message}`);
-    return null;
+    const product = await dbGetProductBySlug(slug);
+    if (product) return product;
+  } catch (error) {
+    console.error(`[getProduct] Error from Neon for slug "${slug}":`, error);
   }
+
+  return null;
 }
 
 export async function getProductsByCategory(categorySlug: string) {
   try {
-    const products = await client.fetch(productsByCategoryQuery, { categorySlug }, {
-      next: { revalidate: 60 },
-    });
-    return products || [];
+    const products = await dbGetProductsByCategory(categorySlug);
+    if (products && products.length > 0) return products;
   } catch (error) {
-    console.error('Error fetching products by category:', error);
-    return [];
+    console.error('[getProductsByCategory] Error from Neon:', error);
   }
+
+  return [];
 }
 
 export async function getCategories() {
   try {
-    const categories = await client.fetch(categoriesQuery, {}, {
-      next: { revalidate: 60 },
-    });
-    return categories || [];
+    const categories = await dbGetCategories();
+    if (categories && categories.length > 0) return categories;
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    return [];
+    console.error('[getCategories] Error from Neon:', error);
   }
+
+  return [];
 }
 
 export async function getHeroCategories() {
   try {
-    const categories = await client.fetch(heroCategoriesQuery, {}, {
-      next: { revalidate: 60 },
-    });
-    return categories || [];
+    const categories = await dbGetHeroCategories();
+    if (categories && categories.length > 0) return categories;
   } catch (error) {
-    console.error('Error fetching hero categories:', error);
-    return [];
+    console.error('[getHeroCategories] Error from Neon:', error);
   }
+
+  return [];
 }
-
-

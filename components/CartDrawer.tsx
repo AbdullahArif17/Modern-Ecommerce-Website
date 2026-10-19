@@ -11,6 +11,16 @@ import { cn } from '@/lib/utils'
 export function CartDrawer() {
   const { isCartOpen, toggleCart, items, updateQuantity, removeItem } = useCartStore()
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isCartOpen) {
+        toggleCart()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isCartOpen, toggleCart])
+
   const subtotal = items.reduce((acc, item) => {
     const itemPrice = item.discountPrice || item.price
     return acc + (itemPrice * item.quantity)
@@ -26,11 +36,15 @@ export function CartDrawer() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={toggleCart}
+            aria-hidden="true"
             className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-[110]"
           />
 
           {/* Side Drawer */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Shopping Cart"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -53,6 +67,7 @@ export function CartDrawer() {
               <button 
                 onClick={toggleCart} 
                 className="p-2.5 hover:bg-secondary rounded-xl transition-all active:scale-90 text-muted-foreground hover:text-foreground"
+                aria-label="Close cart"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -72,25 +87,30 @@ export function CartDrawer() {
                 </div>
               ) : (
                 <div className="divide-y divide-border/40">
-                  {items.map((item, index) => (
-                    <motion.div 
-                      key={item._id} 
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="group flex gap-4 p-5 md:p-6 hover:bg-secondary/20 transition-colors"
-                    >
-                      <div className="relative w-20 h-20 md:w-24 md:h-24 bg-secondary/50 rounded-2xl overflow-hidden flex-shrink-0 border border-border/30">
-                        {item.images && item.images[0] && (
+                  {items.map((item, index) => {
+                    const itemImageUrl = (item.images && item.images[0])
+                      ? urlFor(item.images[0]).url()
+                      : (item as any).image
+                        ? (typeof (item as any).image === 'string' ? (item as any).image : urlFor((item as any).image).url())
+                        : '/placeholder.jpg'
+
+                    return (
+                      <motion.div 
+                        key={item._id} 
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="group flex gap-4 p-5 md:p-6 hover:bg-secondary/20 transition-colors"
+                      >
+                        <div className="relative w-20 h-20 md:w-24 md:h-24 bg-secondary/50 rounded-2xl overflow-hidden flex-shrink-0 border border-border/30">
                           <Image 
-                            src={urlFor(item.images[0]).url()} 
+                            src={itemImageUrl} 
                             alt={item.name}
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-500"
                             sizes="100px"
                           />
-                        )}
-                      </div>
+                        </div>
                       <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
                           <div className="flex items-start justify-between gap-2">
@@ -143,7 +163,8 @@ export function CartDrawer() {
                         </div>
                       </div>
                     </motion.div>
-                  ))}
+                  )
+                })}
                 </div>
               )}
             </div>

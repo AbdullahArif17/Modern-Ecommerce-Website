@@ -1,10 +1,15 @@
 'use client'
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react"
 import { motion } from 'framer-motion'
 
 export function Footer() {
+  const pathname = usePathname()
+  if (pathname?.startsWith('/admin')) {
+    return null
+  }
   return (
     <footer className="bg-gradient-to-b from-background via-secondary/20 to-background border-t border-border/50 pt-20 pb-12">
       <div className="container mx-auto px-4 md:px-6 lg:px-8">
@@ -30,7 +35,7 @@ export function Footer() {
                 <Facebook className="w-5 h-5" />
               </motion.a>
               <motion.a 
-                href="https://www.instagram.com/j_tech.mart?fbclid=IwY2xjawRI6l1leHRuA2FlbQIxMABicmlkETFrMGtQT1B4RzZkczFxRjN6c3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHlfKeREnjZo-4yRDMpK7qi5wZbpUQIpk9M-K27dwxS4qgm6I4HhdBN_a_wKX_aem_-A1jEkMyeDP957ogxavFiw" 
+                href="https://www.instagram.com/j_tech.mart" 
                 target="_blank" rel="noopener noreferrer"
                 className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-primary transition-all"
                 whileHover={{ scale: 1.1, y: -2 }}

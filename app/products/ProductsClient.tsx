@@ -147,6 +147,16 @@ function ProductsContent({ products }: ProductsClientProps) {
       setActiveCategory('all');
     }
   }, [searchParams, categoryParam]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isMobileFilterOpen) {
+        setIsMobileFilterOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileFilterOpen]);
   
   const categories = useMemo(() => {
     // Map of slug -> title to ensure unique categories based on slugs
@@ -363,9 +373,13 @@ function ProductsContent({ products }: ProductsClientProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileFilterOpen(false)}
+              aria-hidden="true"
               className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-md md:hidden"
             />
             <motion.div 
+              role="dialog"
+              aria-modal="true"
+              aria-label="Filter products"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -384,6 +398,7 @@ function ProductsContent({ products }: ProductsClientProps) {
                 </div>
                 <button 
                   onClick={() => setIsMobileFilterOpen(false)}
+                  aria-label="Close filter panel"
                   className="p-3 hover:bg-secondary rounded-2xl transition-all active:scale-95"
                 >
                   <X className="w-6 h-6" />

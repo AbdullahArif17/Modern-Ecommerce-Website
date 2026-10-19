@@ -54,6 +54,7 @@ export interface Category {
   description?: string;
   image?: any;
   sortOrder?: number;
+  showInHero?: boolean;
 }
 
 

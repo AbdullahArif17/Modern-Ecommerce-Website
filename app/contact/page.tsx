@@ -1,22 +1,42 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, MapPin, Phone, Send, CheckCircle2 } from 'lucide-react';
+import { Mail, MapPin, Phone, Send, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function ContactPage() {
+  const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
+    setStatus('idle');
+    setErrorMessage('');
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send message.');
+      }
+
+      setStatus('success');
+      setFormData({ name: '', email: '', message: '' });
+      setTimeout(() => setStatus('idle'), 5000);
+    } catch (err: any) {
+      setStatus('error');
+      setErrorMessage(err.message || 'Something went wrong. Please try again.');
+    } finally {
       setIsSubmitting(false);
-      setIsSuccess(true);
-      // Reset after 3 seconds
-      setTimeout(() => setIsSuccess(false), 3000);
-    }, 1500);
+    }
   };
 
   return (
@@ -45,7 +65,9 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-primary">Email</h3>
-                  <p className="text-muted-foreground">support@jtechmart.com</p>
+                  <a href="mailto:support@jtechmart.com" className="text-muted-foreground hover:text-primary transition-colors">
+                    support@jtechmart.com
+                  </a>
                 </div>
               </div>
               
@@ -54,8 +76,10 @@ export default function ContactPage() {
                   <Phone className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-primary">Phone</h3>
-                  <p className="text-muted-foreground">+1 (555) 123-4567</p>
+                  <h3 className="font-semibold text-primary">Phone / WhatsApp</h3>
+                  <a href="tel:+923001234567" className="text-muted-foreground hover:text-primary transition-colors">
+                    +92 300 1234567
+                  </a>
                 </div>
               </div>
 
@@ -85,6 +109,8 @@ export default function ContactPage() {
                     type="text"
                     id="name"
                     required
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground placeholder:text-muted-foreground"
                     placeholder="John Doe"
                   />
@@ -95,6 +121,8 @@ export default function ContactPage() {
                     type="email"
                     id="email"
                     required
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground placeholder:text-muted-foreground"
                     placeholder="john@example.com"
                   />
@@ -107,15 +135,24 @@ export default function ContactPage() {
                   id="message"
                   required
                   rows={4}
+                  value={formData.message}
+                  onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
                   className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none text-foreground placeholder:text-muted-foreground"
                   placeholder="How can we help you?"
                 />
               </div>
 
+              {status === 'error' && (
+                <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={isSubmitting || isSuccess}
-                className="w-full bg-primary text-primary-foreground font-semibold py-3 rounded-lg hover:bg-primary/90 transition-all dark:bg-white dark:text-black dark:hover:bg-gray-200 flex items-center justify-center gap-2 relative overflow-hidden disabled:opacity-80 disabled:cursor-not-allowed"
+                disabled={isSubmitting || status === 'success'}
+                className="w-full bg-primary text-primary-foreground font-semibold py-3 rounded-lg hover:bg-primary/90 transition-all dark:bg-white dark:text-black dark:hover:bg-gray-200 flex items-center justify-center gap-2 relative overflow-hidden disabled:opacity-80 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isSubmitting ? (
                   <span className="flex items-center gap-2">
@@ -125,7 +162,7 @@ export default function ContactPage() {
                     </svg>
                     Sending...
                   </span>
-                ) : isSuccess ? (
+                ) : status === 'success' ? (
                   <span className="flex items-center gap-2 text-green-500 dark:text-green-600">
                     <CheckCircle2 className="w-5 h-5" />
                     Sent Successfully!

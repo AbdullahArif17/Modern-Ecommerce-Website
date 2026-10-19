@@ -19,6 +19,10 @@ export function MobileBottomNav() {
 
   const isActive = (path: string) => pathname === path;
 
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-[60] pb-[env(safe-area-inset-bottom)]">
       {/* Gradient fade edge */}

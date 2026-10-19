@@ -1,4 +1,4 @@
-import { client } from '@/lib/sanity'
+import { getProductsByCategory } from '@/lib/sanity'
 import { notFound } from 'next/navigation'
 import { ProductCard } from '@/components/ProductCard'
 import { Product } from '@/lib/products'
@@ -7,26 +7,6 @@ interface Props {
   params: Promise<{
     slug: string
   }>
-}
-
-async function getProductsByCategory(slug: string) {
-  // Category is a reference in Sanity, so we check against the referenced slug
-  const query = `*[_type == "product" && category->slug.current == $slug] | order(_createdAt desc) {
-    _id,
-    name,
-    title,
-    price,
-    discountPrice,
-    description,
-    "slug": slug.current,
-    images,
-    category,
-    reviewCount,
-    rating,
-    productTags,
-    features
-  }`
-  return client.fetch(query, { slug })
 }
 
 const categoryTitles: Record<string, string> = {

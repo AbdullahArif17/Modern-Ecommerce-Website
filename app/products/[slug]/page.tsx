@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const product: Product = await getProduct(slug);
+  const product = await getProduct(slug);
 
   if (!product) {
     return (

@@ -14,8 +14,16 @@ export function Navbar() {
   const { items, toggleCart } = useCartStore()
   const pathname = usePathname()
   const [scrolled, setScrolled] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
 
-  const cartCount = items.reduce((acc, item) => acc + item.quantity, 0)
+  React.useEffect(() => {
+    setMounted(true)
+    const handleScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const cartCount = mounted ? items.reduce((acc, item) => acc + item.quantity, 0) : 0
 
   const navLinks = [
     { href: '/', label: 'Home' },
@@ -26,12 +34,9 @@ export function Navbar() {
 
   const isActive = (path: string) => pathname === path
 
-  // Track scroll for visual effect
-  React.useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+  if (pathname?.startsWith('/admin')) {
+    return null
+  }
 
   return (
     <motion.nav 
@@ -59,11 +64,11 @@ export function Navbar() {
             <Image
               src="/J Tech Mart Logo-01.png"
               alt="JTech Mart Logo"
-              width={350}
-              height={350}
+              width={180}
+              height={180}
               className={cn(
                 "w-auto transition-all duration-300",
-                scrolled ? "h-28 md:h-36" : "h-28 md:h-36"
+                scrolled ? "h-14 md:h-16" : "h-16 md:h-20"
               )}
               priority
             />
