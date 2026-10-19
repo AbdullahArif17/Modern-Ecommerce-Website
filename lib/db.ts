@@ -251,10 +251,8 @@ export async function dbGetProductsByCategory(categorySlug: string): Promise<Pro
 
 export async function dbGetCategories(): Promise<Category[]> {
   const defaultCategories: Category[] = [
-    { _id: 'cat-1', title: 'Smart Watches', slug: 'smart-watches', image: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&q=80&w=800', showInHero: true },
-    { _id: 'cat-2', title: 'Earbuds', slug: 'earbuds', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=800', showInHero: true },
-    { _id: 'cat-3', title: 'Headphones', slug: 'headphones', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=800', showInHero: true },
-    { _id: 'cat-4', title: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&q=80&w=800', showInHero: true },
+    { _id: '022b58e6-34ee-461f-85f3-5308cf22ca60', title: 'MOUSE', slug: 'mouse', image: 'https://cdn.sanity.io/images/b5dr6ut1/production/26feec9e53d41817eb411f320033d41fd7f81ed4-1080x1080.jpg', showInHero: true, sortOrder: 1 },
+    { _id: '66b709e1-0d37-4e78-82bc-781e69dbd6a4', title: 'Accessories', slug: 'accessories', image: 'https://cdn.sanity.io/images/b5dr6ut1/production/2ef0939d338611c04584df29503cbd3dd7010d84-1200x1200.jpg', showInHero: true, sortOrder: 0 },
   ];
 
   if (!hasDatabaseUrl) {
@@ -274,10 +272,8 @@ export async function dbGetCategories(): Promise<Category[]> {
 
 export async function dbGetHeroCategories(): Promise<Category[]> {
   const defaultHeroCategories: Category[] = [
-    { _id: 'cat-1', title: 'Smart Watches', slug: 'smart-watches', image: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&q=80&w=800', showInHero: true },
-    { _id: 'cat-2', title: 'Earbuds', slug: 'earbuds', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=800', showInHero: true },
-    { _id: 'cat-3', title: 'Headphones', slug: 'headphones', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=800', showInHero: true },
-    { _id: 'cat-4', title: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&q=80&w=800', showInHero: true },
+    { _id: '022b58e6-34ee-461f-85f3-5308cf22ca60', title: 'MOUSE', slug: 'mouse', image: 'https://cdn.sanity.io/images/b5dr6ut1/production/26feec9e53d41817eb411f320033d41fd7f81ed4-1080x1080.jpg', showInHero: true, sortOrder: 1 },
+    { _id: '66b709e1-0d37-4e78-82bc-781e69dbd6a4', title: 'Accessories', slug: 'accessories', image: 'https://cdn.sanity.io/images/b5dr6ut1/production/2ef0939d338611c04584df29503cbd3dd7010d84-1200x1200.jpg', showInHero: true, sortOrder: 0 },
   ];
 
   if (!hasDatabaseUrl) {

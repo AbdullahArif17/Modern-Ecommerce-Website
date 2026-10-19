@@ -52,6 +52,7 @@ export function ProductCard({ product }: ProductCardProps) {
           fill
           className="object-cover object-center group-hover:scale-110 transition-transform duration-[1.2s] ease-out"
           sizes="(max-width: 768px) 50vw, 33vw"
+          unoptimized={typeof imageUrl === 'string' && imageUrl.startsWith('data:')}
           loading="lazy"
         />
         

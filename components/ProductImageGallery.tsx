@@ -16,21 +16,29 @@ export function ProductImageGallery({ product }: ProductImageGalleryProps) {
     <div className="space-y-4 sm:space-y-5 md:space-y-6">
       {/* Main Image */}
       <div className="aspect-square relative rounded-2xl md:rounded-3xl overflow-hidden bg-secondary border border-border group cursor-zoom-in shadow-lg">
-        <Image
-          src={getProductImageUrl({ image: selectedImage })}
-          alt={product.title || product.name || 'Product Image'}
-          fill
-          className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
-          priority
-          sizes="(max-width: 1024px) 100vw, 50vw"
-        />
+        {(() => {
+          const mainUrl = getProductImageUrl({ image: selectedImage });
+          return (
+            <Image
+              src={mainUrl}
+              alt={product.title || product.name || 'Product Image'}
+              fill
+              unoptimized={mainUrl.startsWith('data:')}
+              className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+              priority
+              sizes="(max-width: 1024px) 100vw, 50vw"
+            />
+          );
+        })()}
       </div>
 
       {/* Thumbnails */}
       {product.images && product.images.length > 1 && (
         <div className="grid grid-cols-4 gap-3 sm:gap-4 md:gap-5">
           {product.images.map((img: any, i: number) => {
-            const isSelected = getProductImageUrl({ image: img }) === getProductImageUrl({ image: selectedImage });
+            const imgUrl = getProductImageUrl({ image: img });
+            const selectedUrl = getProductImageUrl({ image: selectedImage });
+            const isSelected = imgUrl === selectedUrl;
             return (
               <div 
                 key={i} 
@@ -42,11 +50,10 @@ export function ProductImageGallery({ product }: ProductImageGalleryProps) {
                 onClick={() => setSelectedImage(img)}
               >
                 <Image
-                  src={getProductImageUrl({ image: img })} // Use helper to get URL
-                  // Note: getProductImageUrl expects { images?: ..., image?: ... }
-                  // But here we are passing { image: img } which matches helper logic line 42
+                  src={imgUrl}
                   alt={`${product.title || product.name} - Image ${i + 1}`}
                   fill
+                  unoptimized={imgUrl.startsWith('data:')}
                   className="object-cover"
                   sizes="(max-width: 1024px) 25vw, 12.5vw"
                 />

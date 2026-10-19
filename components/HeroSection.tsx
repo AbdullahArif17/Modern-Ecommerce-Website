@@ -55,6 +55,7 @@ export function HeroSection({ categories = [] }: { categories?: Category[] }) {
                   src={category.image ? urlFor(category.image).url() : '/placeholder.jpg'}
                   alt={category.title}
                   fill
+                  unoptimized={typeof category.image === 'string' && category.image.startsWith('data:')}
                   className="object-cover transition-transform duration-500 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-primary/5 group-hover:bg-transparent transition-colors" />

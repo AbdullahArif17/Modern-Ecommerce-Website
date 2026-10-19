@@ -1,0 +1,194 @@
+{
+  "categories": [
+    {
+      "_createdAt": "2026-02-14T19:28:42Z",
+      "_id": "022b58e6-34ee-461f-85f3-5308cf22ca60",
+      "_rev": "Ie5AKo2ILZ34kXdnCIHDHi",
+      "_system": {
+        "base": {
+          "id": "022b58e6-34ee-461f-85f3-5308cf22ca60",
+          "rev": "J2gHlYmYOmTQjyv8IUhORD"
+        }
+      },
+      "_type": "category",
+      "_updatedAt": "2026-04-17T20:09:27Z",
+      "image": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-26feec9e53d41817eb411f320033d41fd7f81ed4-1080x1080-jpg",
+          "_type": "reference"
+        }
+      },
+      "showInHero": true,
+      "slug": {
+        "_type": "slug",
+        "current": "mouse"
+      },
+      "sortOrder": 1,
+      "title": "MOUSE"
+    },
+    {
+      "_createdAt": "2026-03-25T07:16:09Z",
+      "_id": "66b709e1-0d37-4e78-82bc-781e69dbd6a4",
+      "_rev": "FZ6DK2Umn1EeXRT4O8o6RU",
+      "_type": "category",
+      "_updatedAt": "2026-03-25T07:16:34Z",
+      "slug": {
+        "_type": "slug",
+        "current": "accessories"
+      },
+      "sortOrder": 0,
+      "title": "Accessories"
+    }
+  ],
+  "products": [
+    {
+      "_createdAt": "2026-02-14T19:08:32Z",
+      "_id": "126f7a14-9ae1-4d90-a65d-b7dd4a3ba600",
+      "_rev": "NKxnQ9uMAwwqLJqdJrUnhF",
+      "_system": {
+        "base": {
+          "id": "126f7a14-9ae1-4d90-a65d-b7dd4a3ba600",
+          "rev": "WfzRxGBxIc5jNrXuIUJPWA"
+        }
+      },
+      "_type": "product",
+      "_updatedAt": "2026-02-14T23:19:42Z",
+      "category": {
+        "_ref": "022b58e6-34ee-461f-85f3-5308cf22ca60",
+        "_type": "reference"
+      },
+      "categorySlug": "mouse",
+      "categoryTitle": "MOUSE",
+      "description": "It works right out of the box. This plug-and-play mouse is simple to set up—you just plug it into your USB and get back to business.\n- Ready in No Time\n- Comfort for Either Hand\n- Durable and Reliable\n- Broad Compatibility",
+      "discountPrice": 990,
+      "featured": false,
+      "images": [
+        {
+          "_key": "c74a01be0444",
+          "_type": "image",
+          "asset": {
+            "_ref": "image-26feec9e53d41817eb411f320033d41fd7f81ed4-1080x1080-jpg",
+            "_type": "reference"
+          }
+        },
+        {
+          "_key": "56eb5ba6476f",
+          "_type": "image",
+          "asset": {
+            "_ref": "image-ba6b3a322209d14863c9acd0011670876c281d4f-1080x1080-jpg",
+            "_type": "reference"
+          }
+        },
+        {
+          "_key": "92ef40626324",
+          "_type": "image",
+          "asset": {
+            "_ref": "image-f08cd21681c2c2ba6ca08c9ea6b0fefcef190bf2-1080x1080-jpg",
+            "_type": "reference"
+          }
+        },
+        {
+          "_key": "a86678c178d4",
+          "_type": "image",
+          "asset": {
+            "_ref": "image-1c0505aed162017a68cf4901223ec03132690a91-1080x1080-jpg",
+            "_type": "reference"
+          }
+        }
+      ],
+      "price": 1159,
+      "productTags": [
+        "limited"
+      ],
+      "rating": 3,
+      "reviewCount": 3,
+      "slug": {
+        "_type": "slug",
+        "current": "logitech-b100-optical-usb-mouse"
+      },
+      "title": "Logitech B100 Optical USB Mouse"
+    },
+    {
+      "_createdAt": "2026-03-25T07:11:22Z",
+      "_id": "8296c901-a25e-40c5-ae4b-7a72c6e434d8",
+      "_rev": "7NL1Zo3O032rmD8T0dUmp5",
+      "_system": {
+        "base": {
+          "id": "8296c901-a25e-40c5-ae4b-7a72c6e434d8",
+          "rev": "DeaAc7Tq58n9GWoPUG54eR"
+        }
+      },
+      "_type": "product",
+      "_updatedAt": "2026-03-25T07:20:10Z",
+      "brand": "Chaina",
+      "category": {
+        "_ref": "66b709e1-0d37-4e78-82bc-781e69dbd6a4",
+        "_type": "reference"
+      },
+      "categorySlug": "accessories",
+      "categoryTitle": "Accessories",
+      "featured": false,
+      "images": [
+        {
+          "_key": "73ba7b5367c5",
+          "_type": "image",
+          "asset": {
+            "_ref": "image-2ef0939d338611c04584df29503cbd3dd7010d84-1200x1200-jpg",
+            "_type": "reference"
+          }
+        }
+      ],
+      "isActive": true,
+      "price": 1150,
+      "productTags": [
+        "bestseller"
+      ],
+      "reviewCount": 0,
+      "slug": {
+        "_type": "slug",
+        "current": "usb"
+      },
+      "sortOrder": 50,
+      "stockQuantity": 100,
+      "stockStatus": "in_stock",
+      "title": "Usb"
+    },
+    {
+      "_createdAt": "2026-01-30T20:27:33Z",
+      "_id": "d484aca7-119e-483f-b36d-46b81835d4ab",
+      "_rev": "WfzRxGBxIc5jNrXuIUcmVS",
+      "_system": {
+        "base": {
+          "id": "d484aca7-119e-483f-b36d-46b81835d4ab",
+          "rev": "R1A1EAHTSrEkcgqjkWqXuR"
+        }
+      },
+      "_type": "product",
+      "_updatedAt": "2026-02-14T23:19:57Z",
+      "categorySlug": null,
+      "categoryTitle": null,
+      "description": "A Stand",
+      "featured": false,
+      "features": [
+        "A Stand"
+      ],
+      "images": [
+        {
+          "_key": "06589201fb9b",
+          "_type": "image",
+          "asset": {
+            "_ref": "image-94cff363c6dbe769271159acf55206f2ad47ce7f-1000x1000-png",
+            "_type": "reference"
+          }
+        }
+      ],
+      "price": 1100,
+      "slug": {
+        "_type": "slug",
+        "current": "stand"
+      },
+      "title": "Stand"
+    }
+  ]
+}

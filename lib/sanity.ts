@@ -10,8 +10,8 @@ import {
 } from './db';
 import { products as fallbackProducts } from './products';
 
-const rawProjectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'jtech-mart-prod';
-export const projectId = /^[a-z0-9-]+$/i.test(rawProjectId) ? rawProjectId : 'jtech-mart-prod';
+const rawProjectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'b5dr6ut1';
+export const projectId = /^[a-z0-9-]+$/i.test(rawProjectId) ? rawProjectId : 'b5dr6ut1';
 export const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
 export const apiVersion = '2023-01-01';
 

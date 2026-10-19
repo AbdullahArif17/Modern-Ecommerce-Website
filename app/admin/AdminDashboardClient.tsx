@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Product, Category } from '@/lib/products';
+import { ImageUploader } from '@/components/ImageUploader';
 
 interface AdminDashboardClientProps {
   initialProducts: Product[];
@@ -1507,48 +1508,14 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
 
           {/* Section 3: Media Gallery */}
           <div className="space-y-4 pt-4 border-t border-border/40">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-primary">3. Image Gallery URLs</h3>
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  placeholder="Paste direct image URL (https://...)"
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                  className="flex-1 px-4 py-2 rounded-xl bg-background border border-border/60 text-foreground"
-                />
-                <button
-                  type="button"
-                  onClick={addImage}
-                  className="px-4 py-2 rounded-xl bg-secondary hover:bg-secondary/80 font-bold text-xs"
-                >
-                  + Add URL
-                </button>
-              </div>
-
-              {images.length > 0 && (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-2">
-                  {images.map((url, i) => (
-                    <div key={i} className="relative group rounded-2xl overflow-hidden border border-border/50 aspect-square bg-secondary/30">
-                      <Image src={url} alt={`Preview ${i}`} fill className="object-cover" sizes="120px" />
-                      {i === 0 && (
-                        <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-md">
-                          Primary
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeImage(i)}
-                        className="absolute top-1 right-1 p-1 rounded-lg bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Remove image"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <ImageUploader
+              images={images}
+              onChange={setImages}
+              multiple={true}
+              maxFiles={12}
+              label="3. Product Media & Images"
+              helperText="Upload product photos directly from your device (click to browse or drag & drop). The first photo is used as the primary storefront image."
+            />
           </div>
 
           {/* Section 4: Description & Features */}
@@ -1833,13 +1800,12 @@ function CategoryFormModal({ category, onClose, onSaved }: CategoryFormModalProp
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-bold text-foreground">Thumbnail Image URL</label>
-            <input
-              type="url"
-              placeholder="https://images.unsplash.com/..."
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border/60 text-foreground"
+            <ImageUploader
+              images={image ? [image] : []}
+              onChange={(imgs) => setImage(imgs[0] || '')}
+              multiple={false}
+              label="Category Thumbnail Image"
+              helperText="Upload image for category card (click to browse or drag & drop)"
             />
           </div>
 
