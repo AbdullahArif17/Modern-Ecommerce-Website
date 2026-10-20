@@ -72,10 +72,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             {(() => {
               const catTitle = typeof product.category === 'string' ? product.category : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : '');
               if (!catTitle) return null;
+              const catSlug = product.categorySlug || catTitle.toLowerCase().replace(/\s+/g, '-');
               return (
                 <>
                   <span>/</span>
-                  <span className="hover:text-primary transition-colors">{catTitle}</span>
+                  <Link href={`/products?category=${catSlug}`} className="hover:text-primary transition-colors">{catTitle}</Link>
                 </>
               );
             })()}

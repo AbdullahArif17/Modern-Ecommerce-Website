@@ -214,38 +214,59 @@ export async function dbGetFeaturedProducts(): Promise<Product[]> {
 
 export async function dbGetProductBySlug(slug: string): Promise<Product | null> {
   if (!hasDatabaseUrl) {
-    return fallbackProducts.find(p => p.slug === slug || p.id === slug) || null;
+    const s = slug.toLowerCase();
+    return fallbackProducts.find(p => p.slug.toLowerCase() === s || (p.id && p.id.toLowerCase() === s)) || null;
   }
   try {
     const rows = await sql`
       SELECT * FROM products 
-      WHERE (slug = ${slug} OR id = ${slug}) 
+      WHERE (LOWER(slug) = LOWER(${slug}) OR id = ${slug}) 
       LIMIT 1
     `;
     if (rows.length === 0) {
-      return fallbackProducts.find(p => p.slug === slug || p.id === slug) || null;
+      const s = slug.toLowerCase();
+      return fallbackProducts.find(p => p.slug.toLowerCase() === s || (p.id && p.id.toLowerCase() === s)) || null;
     }
     return formatProductRow(rows[0]);
   } catch (error) {
     console.error('[Neon dbGetProductBySlug error]:', error);
-    return fallbackProducts.find(p => p.slug === slug || p.id === slug) || null;
+    const s = slug.toLowerCase();
+    return fallbackProducts.find(p => p.slug.toLowerCase() === s || (p.id && p.id.toLowerCase() === s)) || null;
   }
 }
 
 export async function dbGetProductsByCategory(categorySlug: string): Promise<Product[]> {
   if (!hasDatabaseUrl) {
-    return fallbackProducts.filter(p => p.category === categorySlug || p.categorySlug === categorySlug);
+    const target = categorySlug.toLowerCase().trim();
+    return fallbackProducts.filter(p => {
+      const pSlug = (p.categorySlug || p.category || '').toLowerCase().trim();
+      return pSlug === target || p.category.toLowerCase().trim() === target;
+    });
   }
   try {
     const rows = await sql`
       SELECT * FROM products 
-      WHERE (category_slug = ${categorySlug} OR category = ${categorySlug}) AND is_active = true 
+      WHERE (
+        LOWER(category_slug) = LOWER(${categorySlug}) 
+        OR LOWER(category) = LOWER(${categorySlug})
+        OR LOWER(REPLACE(category, ' ', '-')) = LOWER(${categorySlug})
+      ) AND is_active = true 
       ORDER BY sort_order ASC, created_at DESC
     `;
-    return rows.length > 0 ? rows.map(formatProductRow) : fallbackProducts.filter(p => p.category === categorySlug || p.categorySlug === categorySlug);
+    if (rows.length > 0) return rows.map(formatProductRow);
+
+    const target = categorySlug.toLowerCase().trim();
+    return fallbackProducts.filter(p => {
+      const pSlug = (p.categorySlug || p.category || '').toLowerCase().trim();
+      return pSlug === target || p.category.toLowerCase().trim() === target;
+    });
   } catch (error) {
     console.error('[Neon dbGetProductsByCategory error]:', error);
-    return fallbackProducts.filter(p => p.category === categorySlug || p.categorySlug === categorySlug);
+    const target = categorySlug.toLowerCase().trim();
+    return fallbackProducts.filter(p => {
+      const pSlug = (p.categorySlug || p.category || '').toLowerCase().trim();
+      return pSlug === target || p.category.toLowerCase().trim() === target;
+    });
   }
 }
 

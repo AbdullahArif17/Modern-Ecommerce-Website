@@ -46,7 +46,7 @@ export function HeroSection({ categories = [] }: { categories?: Category[] }) {
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-8 md:gap-x-12">
           {categories.map((category) => (
             <Link 
-              key={category._id} 
+              key={category._id || (category as any).id || category.slug} 
               href={`/products?category=${category.slug}`} 
               className="group flex flex-col items-center gap-3 transition-all duration-300"
             >

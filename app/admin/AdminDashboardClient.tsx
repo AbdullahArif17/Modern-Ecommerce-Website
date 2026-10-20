@@ -85,7 +85,8 @@ export default function AdminDashboardClient({
   };
 
   // Refresh all data from APIs
-  const refreshData = async () => {
+  const refreshData = async (showNotification: boolean | unknown = true) => {
+    const notify = typeof showNotification === 'boolean' ? showNotification : true;
     setIsRefreshing(true);
     try {
       const [prodRes, catRes, statsRes] = await Promise.all([
@@ -106,9 +107,13 @@ export default function AdminDashboardClient({
         const sData = await statsRes.json();
         setStats(sData.stats);
       }
-      showToast('Data refreshed successfully');
+      if (notify) {
+        showToast('Data refreshed successfully');
+      }
     } catch {
-      showToast('Failed to refresh data', 'error');
+      if (notify) {
+        showToast('Failed to refresh data', 'error');
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -210,7 +215,7 @@ export default function AdminDashboardClient({
         if (res.ok) {
           setProducts((prev) => prev.filter((p) => p._id !== id && p.id !== id));
           showToast('Product deleted permanently');
-          await refreshData();
+          await refreshData(false);
           router.refresh();
         } else {
           showToast('Failed to delete product', 'error');
@@ -220,7 +225,7 @@ export default function AdminDashboardClient({
         if (res.ok) {
           setCategories((prev) => prev.filter((c) => c._id !== id && (c as any).id !== id));
           showToast('Category deleted successfully');
-          await refreshData();
+          await refreshData(false);
           router.refresh();
         } else {
           showToast('Failed to delete category', 'error');
@@ -329,7 +334,7 @@ export default function AdminDashboardClient({
           {/* Right Action Controls */}
           <div className="flex items-center gap-2">
             <button
-              onClick={refreshData}
+              onClick={() => refreshData(true)}
               disabled={isRefreshing}
               className="p-2.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-all disabled:opacity-50"
               title="Refresh database records"
@@ -1117,23 +1122,25 @@ export default function AdminDashboardClient({
             setEditingProduct(null);
           }}
           onSaved={async (savedProduct) => {
-            await refreshData();
-            router.refresh();
-            if (editingProduct) {
-              setProducts((prev) =>
-                prev.map((p) =>
-                  p._id === savedProduct._id || p.id === savedProduct.id || p.slug === savedProduct.slug
-                    ? savedProduct
-                    : p
-                )
-              );
-              showToast('Product updated successfully');
-            } else {
-              setProducts((prev) => [savedProduct, ...prev]);
-              showToast('New product created successfully');
-            }
+            const wasEdit = Boolean(editingProduct);
             setIsProductModalOpen(false);
             setEditingProduct(null);
+
+            // Deduplicated state update
+            setProducts((prev) => {
+              const targetKey = savedProduct._id || savedProduct.id || savedProduct.slug;
+              const exists = prev.some((p) => (p._id || p.id || p.slug) === targetKey || p.slug === savedProduct.slug);
+              if (exists) {
+                return prev.map((p) => ((p._id || p.id || p.slug) === targetKey || p.slug === savedProduct.slug) ? savedProduct : p);
+              }
+              return [savedProduct, ...prev];
+            });
+
+            showToast(wasEdit ? 'Product updated successfully' : 'New product created successfully');
+
+            // Background refresh to guarantee full Neon sync without duplicated toast
+            await refreshData(false);
+            router.refresh();
           }}
         />
       )}
@@ -1149,23 +1156,25 @@ export default function AdminDashboardClient({
             setEditingCategory(null);
           }}
           onSaved={async (savedCategory) => {
-            await refreshData();
-            router.refresh();
-            if (editingCategory) {
-              setCategories((prev) =>
-                prev.map((c) =>
-                  c._id === savedCategory._id || (c as any).id === (savedCategory as any).id || c.slug === savedCategory.slug
-                    ? savedCategory
-                    : c
-                )
-              );
-              showToast('Category updated successfully');
-            } else {
-              setCategories((prev) => [...prev, savedCategory]);
-              showToast('Category created successfully');
-            }
+            const wasEdit = Boolean(editingCategory);
             setIsCategoryModalOpen(false);
             setEditingCategory(null);
+
+            // Deduplicated state update
+            setCategories((prev) => {
+              const targetId = savedCategory._id || (savedCategory as any).id || savedCategory.slug;
+              const exists = prev.some((c) => (c._id || (c as any).id || c.slug) === targetId || c.slug === savedCategory.slug);
+              if (exists) {
+                return prev.map((c) => ((c._id || (c as any).id || c.slug) === targetId || c.slug === savedCategory.slug) ? savedCategory : c);
+              }
+              return [...prev, savedCategory];
+            });
+
+            showToast(wasEdit ? 'Category updated successfully' : 'Category created successfully');
+
+            // Background refresh to guarantee full Neon sync without duplicated toast
+            await refreshData(false);
+            router.refresh();
           }}
         />
       )}
@@ -1319,6 +1328,7 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!title || price === '') {
       setError('Title and Base Price are required.');
       return;
@@ -1735,6 +1745,7 @@ function CategoryFormModal({ category, onClose, onSaved }: CategoryFormModalProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!title) {
       setError('Category Title is required.');
       return;

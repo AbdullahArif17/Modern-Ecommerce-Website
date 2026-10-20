@@ -1,7 +1,7 @@
-import { getProductsByCategory } from '@/lib/sanity'
+import { getProductsByCategory, getCategories } from '@/lib/sanity'
 import { notFound } from 'next/navigation'
 import { ProductCard } from '@/components/ProductCard'
-import { Product } from '@/lib/products'
+import { Product, Category } from '@/lib/products'
 
 interface Props {
   params: Promise<{
@@ -13,6 +13,8 @@ const categoryTitles: Record<string, string> = {
   'smart-watches': 'Smart Watches',
   'earbuds': 'Earbuds',
   'headphones': 'Headphones',
+  'accessories': 'Accessories',
+  'mouse': 'Mouse',
 }
 
 export const dynamic = 'force-dynamic';
@@ -20,11 +22,15 @@ export const revalidate = 0;
 
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params
-  const products: Product[] = await getProductsByCategory(slug)
+  const [products, categories]: [Product[], Category[]] = await Promise.all([
+    getProductsByCategory(slug),
+    getCategories(),
+  ])
 
   if (!products) return notFound()
 
-  const categoryTitle = categoryTitles[slug] || slug.replaceAll('-', ' ')
+  const dbCat = categories.find(c => c.slug.toLowerCase() === slug.toLowerCase())
+  const categoryTitle = dbCat?.title || categoryTitles[slug] || slug.replaceAll('-', ' ')
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,7 +60,7 @@ export default async function CategoryPage({ params }: Props) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
             {products.map((product) => (
-              <ProductCard key={product._id} product={product} />
+              <ProductCard key={product._id || product.id || product.slug} product={product} />
             ))}
           </div>
         )}

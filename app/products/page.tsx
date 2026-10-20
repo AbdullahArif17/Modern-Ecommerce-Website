@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { getProducts } from '@/lib/sanity';
-import { Product } from '@/lib/products';
+import { getProducts, getCategories } from '@/lib/sanity';
+import { Product, Category } from '@/lib/products';
 import ProductsClient from './ProductsClient';
 
 export const metadata: Metadata = {
@@ -16,8 +16,11 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ProductsPage() {
-  const products: Product[] = await getProducts();
+  const [products, categories] = await Promise.all([
+    getProducts(),
+    getCategories(),
+  ]);
 
-  return <ProductsClient products={products} />;
+  return <ProductsClient products={products} initialCategories={categories} />;
 }
 

@@ -4,13 +4,14 @@ import { useSearchParams } from 'next/navigation';
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { ProductCard } from '@/components/ProductCard';
 import { ProductCardSkeleton } from '@/components/ProductCardSkeleton';
-import { Product } from '@/lib/products';
+import { Product, Category } from '@/lib/products';
 import { Filter, Search, ChevronRight, SlidersHorizontal, PackageSearch, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface ProductsClientProps {
   products: Product[];
+  initialCategories?: Category[];
 }
 
 interface FilterPanelProps {
@@ -20,6 +21,7 @@ interface FilterPanelProps {
   activeCategory: string;
   setActiveCategory: (category: string) => void;
   categories: { id: string; label: string }[];
+  categoryCounts: Record<string, number>;
   setIsMobileFilterOpen: (open: boolean) => void;
   sortBy: string;
   setSortBy: (sort: string) => void;
@@ -32,6 +34,7 @@ const FilterPanel = ({
   activeCategory, 
   setActiveCategory, 
   categories,
+  categoryCounts,
   setIsMobileFilterOpen,
   sortBy,
   setSortBy
@@ -96,33 +99,47 @@ const FilterPanel = ({
         <h4 className="text-[10px] font-black text-primary/40 uppercase tracking-[0.4em]">Categories</h4>
       </div>
       <div className="flex flex-col gap-3">
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            onClick={() => {
-              setActiveCategory(category.id);
-              if (isMobile) setIsMobileFilterOpen(false);
-            }}
-            className={cn(
+        {categories.map((category) => {
+          const isSelected = activeCategory.toLowerCase().trim() === category.id.toLowerCase().trim();
+          const count = categoryCounts[category.id] ?? 0;
+          return (
+            <button
+              key={category.id}
+              onClick={() => {
+                setActiveCategory(category.id);
+                if (isMobile) setIsMobileFilterOpen(false);
+              }}
+              className={cn(
                 "group flex items-center justify-between px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all relative border overflow-hidden",
-                activeCategory === category.id
-                ? "bg-primary text-primary-foreground border-primary shadow-2xl shadow-primary/20 scale-[1.03] z-10"
-                : "bg-card text-muted-foreground border-border hover:border-primary/30 hover:text-primary"
-            )}
-          >
-            <span className="relative z-10">{category.label}</span>
-            <ChevronRight className={cn(
-              "w-4 h-4 transition-all duration-500 relative z-10",
-              activeCategory === category.id ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
-            )} />
-          </button>
-        ))}
+                isSelected
+                  ? "bg-primary text-primary-foreground border-primary shadow-2xl shadow-primary/20 scale-[1.03] z-10"
+                  : "bg-card text-muted-foreground border-border hover:border-primary/30 hover:text-primary"
+              )}
+            >
+              <div className="flex items-center gap-2 relative z-10">
+                <span>{category.label}</span>
+                <span className={cn(
+                  "text-[10px] font-black px-2 py-0.5 rounded-full border transition-colors",
+                  isSelected
+                    ? "bg-primary-foreground/20 text-primary-foreground border-transparent"
+                    : "bg-secondary text-muted-foreground border-border/50 group-hover:border-primary/30"
+                )}>
+                  {count}
+                </span>
+              </div>
+              <ChevronRight className={cn(
+                "w-4 h-4 transition-all duration-500 relative z-10",
+                isSelected ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
+              )} />
+            </button>
+          );
+        })}
       </div>
     </div>
   </div>
 );
 
-function ProductsContent({ products }: ProductsClientProps) {
+function ProductsContent({ products, initialCategories = [] }: ProductsClientProps) {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
   
@@ -136,7 +153,6 @@ function ProductsContent({ products }: ProductsClientProps) {
     const cp = searchParams.get('category');
     if (cp) {
       setActiveCategory(cp);
-      // Auto-scroll to products when category is selected from URL
       setTimeout(() => {
         const element = document.getElementById('product-grid');
         if (element) {
@@ -161,11 +177,24 @@ function ProductsContent({ products }: ProductsClientProps) {
   const categories = useMemo(() => {
     // Map of slug -> title to ensure unique categories based on slugs
     const catMap = new Map<string, string>();
-    products.forEach(p => {
-      const catString = typeof p.category === 'string' ? p.category : (typeof (p.category as any)?.title === 'string' ? (p.category as any).title : '');
-      const slug = p.categorySlug || (catString ? catString.toLowerCase().replace(/\s+/g, '-') : null);
-      const title = catString;
+
+    // 1. First add all official categories from database
+    (initialCategories || []).forEach(cat => {
+      const slug = (cat.slug || '').trim().toLowerCase();
+      const title = (cat.title || '').trim();
       if (slug && title) {
+        catMap.set(slug, title);
+      }
+    });
+
+    // 2. Also incorporate any category found on products
+    products.forEach(p => {
+      const catString = typeof p.category === 'string' 
+        ? p.category 
+        : (typeof (p.category as any)?.title === 'string' ? (p.category as any).title : '');
+      const slug = (p.categorySlug || (catString ? catString.toLowerCase().replace(/\s+/g, '-') : '')).trim().toLowerCase();
+      const title = catString.trim();
+      if (slug && title && !catMap.has(slug)) {
         catMap.set(slug, title);
       }
     });
@@ -174,21 +203,45 @@ function ProductsContent({ products }: ProductsClientProps) {
       { id: 'all', label: 'All Products' },
       ...Array.from(catMap.entries()).map(([slug, title]) => ({ id: slug, label: title })),
     ];
-  }, [products]);
+  }, [products, initialCategories]);
+
+  // Compute product count for each category
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: products.length };
+    categories.forEach(cat => {
+      if (cat.id === 'all') return;
+      const target = cat.id.toLowerCase().trim();
+      counts[cat.id] = products.filter(p => {
+        const catString = typeof p.category === 'string' 
+          ? p.category 
+          : (typeof (p.category as any)?.title === 'string' ? (p.category as any).title : '');
+        const prodSlug = (p.categorySlug || (catString ? catString.toLowerCase().replace(/\s+/g, '-') : '')).trim().toLowerCase();
+        const prodTitle = catString.trim().toLowerCase();
+        return prodSlug === target || prodTitle === target || prodTitle.replace(/\s+/g, '-') === target;
+      }).length;
+    });
+    return counts;
+  }, [categories, products]);
 
   const filteredProducts = useMemo(() => {
     let filtered = activeCategory === 'all' 
       ? products 
       : products.filter(product => {
-          const catString = typeof product.category === 'string' ? product.category : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : '');
-          const slug = product.categorySlug || (catString ? catString.toLowerCase().replace(/\s+/g, '-') : '');
-          return slug === activeCategory;
+          const catString = typeof product.category === 'string' 
+            ? product.category 
+            : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : '');
+          const prodSlug = (product.categorySlug || (catString ? catString.toLowerCase().replace(/\s+/g, '-') : '')).trim().toLowerCase();
+          const target = activeCategory.trim().toLowerCase();
+          const prodTitle = catString.trim().toLowerCase();
+          return prodSlug === target || prodTitle === target || prodTitle.replace(/\s+/g, '-') === target;
       });
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(product => {
-        const catString = typeof product.category === 'string' ? product.category : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : '');
+        const catString = typeof product.category === 'string' 
+          ? product.category 
+          : (typeof (product.category as any)?.title === 'string' ? (product.category as any).title : '');
         return (
           (product.title || product.name || '').toLowerCase().includes(query) ||
           (product.description || '').toLowerCase().includes(query) ||
@@ -262,23 +315,23 @@ function ProductsContent({ products }: ProductsClientProps) {
         </div>
       </section>
 
-      {/* Mobile Sticky Action Bar */}
-      <div className="sticky top-16 md:hidden z-30 bg-background/80 backdrop-blur-xl border-b border-border/40 py-4 px-4 flex items-center justify-between">
+      {/* Mobile & Tablet Sticky Action Bar */}
+      <div className="sticky top-16 lg:hidden z-30 bg-background/80 backdrop-blur-xl border-b border-border/40 py-3 px-4 flex items-center justify-between">
         <button 
           onClick={() => setIsMobileFilterOpen(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-primary/10 rounded-2xl text-[10px] font-black uppercase text-primary border border-primary/20"
+          className="flex items-center gap-2 px-5 py-2.5 bg-primary/10 rounded-2xl text-xs font-black uppercase text-primary border border-primary/20 hover:bg-primary/20 transition-all active:scale-95"
         >
-          <Filter className="w-3.5 h-3.5" />
-          Filters
+          <Filter className="w-4 h-4" />
+          Filter & Categories
         </button>
         <div className="flex items-center gap-3">
-           <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.1em]">
-            {filteredProducts.length} Products
+           <p className="text-xs font-black text-primary/60 uppercase tracking-wider">
+            {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'}
           </p>
         </div>
       </div>
 
-      <div id="product-grid" className="container mx-auto px-4 py-12 md:py-32">
+      <div id="product-grid" className="container mx-auto px-4 py-8 md:py-16 lg:py-24">
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
           {/* Desktop Control Panel */}
           <aside className="hidden lg:block w-80 flex-shrink-0">
@@ -288,6 +341,7 @@ function ProductsContent({ products }: ProductsClientProps) {
               activeCategory={activeCategory}
               setActiveCategory={setActiveCategory}
               categories={categories}
+              categoryCounts={categoryCounts}
               setIsMobileFilterOpen={setIsMobileFilterOpen}
               sortBy={sortBy}
               setSortBy={setSortBy}
@@ -295,8 +349,39 @@ function ProductsContent({ products }: ProductsClientProps) {
           </aside>
 
           {/* Visualization Grid (Main Content) */}
-          <main className="flex-1 w-full space-y-12">
-            <div className="hidden sm:flex items-center justify-between gap-8 pb-10 border-b border-border/60">
+          <main className="flex-1 w-full space-y-8">
+            {/* Quick Category Filter Bar (Scrollable chips) */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+              {categories.map((category) => {
+                const isSelected = activeCategory.toLowerCase().trim() === category.id.toLowerCase().trim();
+                const count = categoryCounts[category.id] ?? 0;
+                return (
+                  <button
+                    key={`quick-${category.id}`}
+                    onClick={() => setActiveCategory(category.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap border flex-shrink-0",
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20 scale-[1.02]"
+                        : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                    )}
+                  >
+                    <span>{category.label}</span>
+                    <span className={cn(
+                      "text-[10px] font-black px-1.5 py-0.5 rounded-full transition-colors",
+                      isSelected
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-secondary text-muted-foreground"
+                    )}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Results bar and sort */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-border/60">
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 bg-primary/5 rounded-2xl flex items-center justify-center border border-primary/10">
                     <PackageSearch className="w-5 h-5 text-primary" />
@@ -333,7 +418,7 @@ function ProductsContent({ products }: ProductsClientProps) {
                 <motion.div 
                   key="products-grid"
                   layout
-                  className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-14"
+                  className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-10"
                 >
                   {filteredProducts.map((product) => (
                     <ProductCard key={product._id || product.id} product={product} />
@@ -343,14 +428,18 @@ function ProductsContent({ products }: ProductsClientProps) {
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center py-20 md:py-40 bg-card rounded-3xl md:rounded-[3.5rem] border border-dashed border-border shadow-inner"
+                  className="flex flex-col items-center justify-center py-20 md:py-32 bg-card rounded-3xl md:rounded-[3.5rem] border border-dashed border-border shadow-inner"
                 >
                   <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center mb-8 border border-primary/10">
                     <PackageSearch className="w-10 h-10 text-primary opacity-30" />
                   </div>
-                  <h3 className="text-2xl md:text-3xl font-black text-foreground mb-4 tracking-tighter uppercase text-center">No Products Found</h3>
-                  <p className="text-muted-foreground mb-12 max-w-sm mx-auto font-bold text-base md:text-lg leading-relaxed px-6 text-center">
-                    We couldn't find any products matching your filters. Try adjusting your search.
+                  <h3 className="text-2xl md:text-3xl font-black text-foreground mb-4 tracking-tighter uppercase text-center">
+                    {activeCategory !== 'all' ? `No Products In "${categories.find(c => c.id.toLowerCase() === activeCategory.toLowerCase())?.label || activeCategory}"` : 'No Products Found'}
+                  </h3>
+                  <p className="text-muted-foreground mb-8 max-w-sm mx-auto font-bold text-base md:text-lg leading-relaxed px-6 text-center">
+                    {activeCategory !== 'all' 
+                      ? 'No items have been assigned to this category yet. Check back soon or browse our other collections!'
+                      : "We couldn't find any products matching your filters. Try adjusting your search."}
                   </p>
                   <button 
                     onClick={() => {
@@ -358,9 +447,9 @@ function ProductsContent({ products }: ProductsClientProps) {
                       setActiveCategory('all')
                       setSortBy('featured')
                     }}
-                    className="px-12 py-5 bg-primary text-primary-foreground rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] shadow-primary/30 hover:scale-105 active:scale-95 transition-all dark:bg-white dark:text-black"
+                    className="px-10 py-4 bg-primary text-primary-foreground rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all dark:bg-white dark:text-black"
                   >
-                    Reset Filters
+                    View All Products
                   </button>
                 </motion.div>
               )}
@@ -369,7 +458,7 @@ function ProductsContent({ products }: ProductsClientProps) {
         </div>
       </div>
 
-      {/* Mobile Filter Drawer */}
+      {/* Mobile & Tablet Filter Drawer */}
       <AnimatePresence>
         {isMobileFilterOpen && (
           <>
@@ -379,7 +468,7 @@ function ProductsContent({ products }: ProductsClientProps) {
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileFilterOpen(false)}
               aria-hidden="true"
-              className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-md md:hidden"
+              className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-md lg:hidden"
             />
             <motion.div 
               role="dialog"
@@ -389,7 +478,7 @@ function ProductsContent({ products }: ProductsClientProps) {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 bottom-0 z-[110] w-[85%] max-w-[400px] bg-background border-l border-border/40 shadow-2xl p-8 overflow-y-auto md:hidden"
+              className="fixed top-0 right-0 bottom-0 z-[110] w-[85%] max-w-[400px] bg-background border-l border-border/40 shadow-2xl p-8 overflow-y-auto lg:hidden"
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
@@ -417,6 +506,7 @@ function ProductsContent({ products }: ProductsClientProps) {
                 activeCategory={activeCategory}
                 setActiveCategory={setActiveCategory}
                 categories={categories}
+                categoryCounts={categoryCounts}
                 setIsMobileFilterOpen={setIsMobileFilterOpen}
                 sortBy={sortBy}
                 setSortBy={setSortBy}

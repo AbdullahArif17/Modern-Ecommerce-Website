@@ -110,6 +110,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Title and price are required.' }, { status: 400 });
     }
 
+    // Deduplication safeguard: Prevent creating duplicate product if user double-clicks submit
+    const recentDuplicate = await sql`
+      SELECT * FROM products 
+      WHERE (title = ${title} AND price = ${price} AND created_at > NOW() - INTERVAL '5 seconds')
+      LIMIT 1
+    `;
+    if (recentDuplicate.length > 0) {
+      console.warn(`[Admin POST Product] Duplicate submission detected for "${title}". Returning existing record.`);
+      return NextResponse.json({
+        success: true,
+        product: formatProductRow(recentDuplicate[0]),
+        deduplicated: true,
+      });
+    }
+
     const baseSlug = customSlug ? slugify(customSlug) : slugify(title);
     const id = `prod-${baseSlug}-${Date.now().toString().slice(-4)}`;
     const finalSlug = baseSlug;

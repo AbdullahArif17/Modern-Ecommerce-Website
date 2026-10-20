@@ -10,9 +10,8 @@ async function run() {
   console.log('taggedRes type:', Array.isArray(taggedRes), 'length:', taggedRes.length);
   console.log(taggedRes);
 
-  const queryRes = await sql.query('SELECT id, title, price FROM products', []);
-  console.log('queryRes type:', Array.isArray(queryRes), 'length:', queryRes.length);
-  console.log(queryRes);
+  const cats = await sql`SELECT * FROM categories`;
+  console.log('Categories:', cats);
 }
 
 run().catch(console.error);
