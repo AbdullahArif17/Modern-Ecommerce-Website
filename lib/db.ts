@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import { Product, Category, products as fallbackProducts } from './products';
+import { Product, Category, Vendor, StoreTransaction, products as fallbackProducts } from './products';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -127,6 +127,9 @@ export function formatProductRow(row: any): Product {
     whatsInTheBox,
     warranty: row.warranty || '1 Year Official Warranty',
     weight: row.weight ? Number(row.weight) : undefined,
+    costPrice: row.cost_price ? Number(row.cost_price) : undefined,
+    vendorId: row.vendor_id || undefined,
+    vendorName: row.vendor_name || undefined,
     colors,
     sizes,
     rating: row.rating ? Number(row.rating) : 5.0,
@@ -147,6 +150,48 @@ export function formatCategoryRow(row: any): Category {
     image: row.image || '/placeholder.jpg',
     sortOrder: Number(row.sort_order) || 0,
     showInHero: Boolean(row.show_in_hero),
+  };
+}
+
+export function formatVendorRow(row: any): Vendor {
+  return {
+    _id: row.id,
+    id: row.id,
+    name: row.name,
+    company: row.company || '',
+    contactPerson: row.contact_person || '',
+    phone: row.phone || '',
+    email: row.email || '',
+    address: row.address || '',
+    paymentTerms: row.payment_terms || 'Net 30',
+    leadTimeDays: Number(row.lead_time_days) || 7,
+    balanceDue: Number(row.balance_due) || 0,
+    notes: row.notes || '',
+    isActive: row.is_active !== false,
+    productCount: Number(row.product_count) || 0,
+    totalSuppliedValue: Number(row.total_supplied_value) || 0,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+  };
+}
+
+export function formatTransactionRow(row: any): StoreTransaction {
+  return {
+    _id: row.id,
+    id: row.id,
+    type: row.type || 'sale',
+    title: row.title || 'Transaction',
+    amount: Number(row.amount) || 0,
+    category: row.category || 'General',
+    vendorId: row.vendor_id || undefined,
+    vendorName: row.vendor_name || undefined,
+    productId: row.product_id || undefined,
+    quantity: Number(row.quantity) || 1,
+    customerName: row.customer_name || undefined,
+    paymentMethod: row.payment_method || 'Cash / COD',
+    status: row.status || 'completed',
+    notes: row.notes || '',
+    transactionDate: row.transaction_date ? new Date(row.transaction_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
   };
 }
 
@@ -310,5 +355,116 @@ export async function dbGetHeroCategories(): Promise<Category[]> {
   } catch (error) {
     console.error('[Neon dbGetHeroCategories error]:', error);
     return defaultHeroCategories;
+  }
+}
+
+export async function dbGetVendors(): Promise<Vendor[]> {
+  if (!hasDatabaseUrl) return [];
+  try {
+    const rows = await sql`
+      SELECT 
+        v.*,
+        COUNT(p.id)::int as product_count,
+        COALESCE(SUM(p.price * p.stock_quantity), 0)::numeric as total_supplied_value
+      FROM vendors v
+      LEFT JOIN products p ON p.vendor_id = v.id
+      GROUP BY v.id
+      ORDER BY v.name ASC
+    `;
+    return rows.map(formatVendorRow);
+  } catch (error) {
+    console.error('[Neon dbGetVendors error]:', error);
+    return [];
+  }
+}
+
+export async function dbGetStoreTransactions(limit = 100): Promise<StoreTransaction[]> {
+  if (!hasDatabaseUrl) return [];
+  try {
+    const rows = await sql`
+      SELECT * FROM store_transactions
+      ORDER BY transaction_date DESC, created_at DESC
+      LIMIT ${limit}
+    `;
+    return rows.map(formatTransactionRow);
+  } catch (error) {
+    console.error('[Neon dbGetStoreTransactions error]:', error);
+    return [];
+  }
+}
+
+export async function dbGetStoreMetrics() {
+  if (!hasDatabaseUrl) {
+    return {
+      retailInventoryValue: 0,
+      costInventoryValue: 0,
+      potentialProfit: 0,
+      grossMarginPercent: 0,
+      totalUnitsInStock: 0,
+      totalSalesRevenue: 0,
+      totalExpenses: 0,
+      totalPurchases: 0,
+      netProfit: 0,
+      lowStockReplenishmentCost: 0,
+    };
+  }
+
+  try {
+    const [invRows, txRows] = await Promise.all([
+      sql`
+        SELECT 
+          COALESCE(SUM(price * stock_quantity), 0)::numeric as retail_value,
+          COALESCE(SUM(COALESCE(cost_price, price * 0.7) * stock_quantity), 0)::numeric as cost_value,
+          COALESCE(SUM(stock_quantity), 0)::int as total_units,
+          COALESCE(SUM(CASE WHEN stock_quantity <= 10 THEN (15 - stock_quantity) * COALESCE(cost_price, price * 0.7) ELSE 0 END), 0)::numeric as replenishment_cost
+        FROM products
+      `,
+      sql`
+        SELECT 
+          COALESCE(SUM(CASE WHEN type = 'sale' AND status = 'completed' THEN amount ELSE 0 END), 0)::numeric as total_sales,
+          COALESCE(SUM(CASE WHEN type = 'expense' AND status = 'completed' THEN amount ELSE 0 END), 0)::numeric as total_expenses,
+          COALESCE(SUM(CASE WHEN type = 'purchase_order' AND status = 'completed' THEN amount ELSE 0 END), 0)::numeric as total_purchases
+        FROM store_transactions
+      `
+    ]);
+
+    const retailVal = Number(invRows[0]?.retail_value) || 0;
+    const costVal = Number(invRows[0]?.cost_value) || 0;
+    const potentialProfit = Math.max(0, retailVal - costVal);
+    const grossMarginPercent = retailVal > 0 ? ((potentialProfit / retailVal) * 100) : 0;
+    const totalUnits = Number(invRows[0]?.total_units) || 0;
+    const replenishmentCost = Number(invRows[0]?.replenishment_cost) || 0;
+
+    const sales = Number(txRows[0]?.total_sales) || 0;
+    const expenses = Number(txRows[0]?.total_expenses) || 0;
+    const purchases = Number(txRows[0]?.total_purchases) || 0;
+    const netProfit = sales - expenses;
+
+    return {
+      retailInventoryValue: retailVal,
+      costInventoryValue: costVal,
+      potentialProfit,
+      grossMarginPercent: Math.round(grossMarginPercent * 10) / 10,
+      totalUnitsInStock: totalUnits,
+      totalSalesRevenue: sales,
+      totalExpenses: expenses,
+      totalPurchases: purchases,
+      netProfit,
+      lowStockReplenishmentCost: replenishmentCost,
+    };
+  } catch (error) {
+    console.error('[Neon dbGetStoreMetrics error]:', error);
+    return {
+      retailInventoryValue: 0,
+      costInventoryValue: 0,
+      potentialProfit: 0,
+      grossMarginPercent: 0,
+      totalUnitsInStock: 0,
+      totalSalesRevenue: 0,
+      totalExpenses: 0,
+      totalPurchases: 0,
+      netProfit: 0,
+      lowStockReplenishmentCost: 0,
+    };
   }
 }

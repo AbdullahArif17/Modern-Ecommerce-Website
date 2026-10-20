@@ -37,6 +37,9 @@ export interface Product {
   reviewCount?: number;
   rating?: number;
   productTags?: string[];
+  costPrice?: number;
+  vendorId?: string;
+  vendorName?: string;
   featured?: boolean;
   isActive?: boolean;
   sortOrder?: number;
@@ -55,6 +58,44 @@ export interface Category {
   image?: any;
   sortOrder?: number;
   showInHero?: boolean;
+}
+
+export interface Vendor {
+  _id: string;
+  id?: string;
+  name: string;
+  company?: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  paymentTerms?: string;
+  leadTimeDays?: number;
+  balanceDue?: number;
+  notes?: string;
+  isActive?: boolean;
+  productCount?: number;
+  totalSuppliedValue?: number;
+  createdAt?: string;
+}
+
+export interface StoreTransaction {
+  _id: string;
+  id?: string;
+  type: 'sale' | 'expense' | 'purchase_order' | 'refund';
+  title: string;
+  amount: number;
+  category?: string;
+  vendorId?: string;
+  vendorName?: string;
+  productId?: string;
+  quantity?: number;
+  customerName?: string;
+  paymentMethod?: string;
+  status?: 'completed' | 'pending' | 'cancelled';
+  notes?: string;
+  transactionDate?: string;
+  createdAt?: string;
 }
 
 

@@ -1,6 +1,13 @@
 import { redirect } from 'next/navigation';
 import { isAuthenticated } from '@/lib/admin-auth';
-import { dbGetAllProductsAdmin, dbGetCategories, sql } from '@/lib/db';
+import { 
+  dbGetAllProductsAdmin, 
+  dbGetCategories, 
+  dbGetVendors, 
+  dbGetStoreTransactions, 
+  dbGetStoreMetrics, 
+  sql 
+} from '@/lib/db';
 import AdminDashboardClient from './AdminDashboardClient';
 
 export const dynamic = 'force-dynamic';
@@ -11,10 +18,13 @@ export default async function AdminPage() {
     redirect('/admin/login');
   }
 
-  // Fetch initial data from Neon
-  const [products, categories, statsRows] = await Promise.all([
+  // Fetch initial data from Neon in parallel
+  const [products, categories, vendors, transactions, storeMetrics, statsRows] = await Promise.all([
     dbGetAllProductsAdmin(),
     dbGetCategories(),
+    dbGetVendors(),
+    dbGetStoreTransactions(100),
+    dbGetStoreMetrics(),
     sql`
       SELECT 
         COUNT(*)::int as total_products,
@@ -40,6 +50,9 @@ export default async function AdminPage() {
       initialProducts={products}
       initialCategories={categories}
       initialStats={initialStats}
+      initialVendors={vendors}
+      initialTransactions={transactions}
+      initialStoreMetrics={storeMetrics}
     />
   );
 }

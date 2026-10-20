@@ -76,6 +76,9 @@ export async function PUT(
       productTags,
       metaTitle,
       metaDescription,
+      costPrice,
+      vendorId,
+      vendorName,
     } = body;
 
     const primaryImage = image || (Array.isArray(images) && images.length > 0 ? (typeof images[0] === 'string' ? images[0] : images[0]?.url) : '/placeholder.jpg');
@@ -89,6 +92,9 @@ export async function PUT(
         sku = COALESCE(${sku}, sku),
         price = COALESCE(${price !== undefined ? Number(price) : null}, price),
         discount_price = ${discountPrice !== undefined ? (discountPrice ? Number(discountPrice) : null) : null},
+        cost_price = ${costPrice !== undefined ? (costPrice ? Number(costPrice) : null) : null},
+        vendor_id = ${vendorId !== undefined ? vendorId : null},
+        vendor_name = ${vendorName !== undefined ? vendorName : null},
         description = COALESCE(${description}, description),
         long_description = ${longDescription ? JSON.stringify(longDescription) : null}::jsonb,
         category_id = COALESCE(${categoryId}, category_id),

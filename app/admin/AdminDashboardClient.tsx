@@ -33,10 +33,36 @@ import {
   DollarSign,
   TrendingUp,
   Image as ImageIcon,
+  Calculator,
+  Building2,
+  Receipt,
+  ArrowUpRight,
+  ArrowDownRight,
+  Wallet,
+  Percent,
+  PieChart,
+  Coins,
+  Briefcase,
+  Users,
+  Phone,
+  Mail,
+  MapPin,
+  CreditCard,
+  Clock,
+  Calendar,
+  CheckSquare,
+  Target,
+  Sliders,
+  ShoppingBag,
+  Box,
+  ChevronRight,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Product, Category } from '@/lib/products';
+import { Product, Category, Vendor, StoreTransaction } from '@/lib/products';
 import { ImageUploader } from '@/components/ImageUploader';
+import { StoreCalculatorsSuite } from '@/components/admin/StoreCalculatorsSuite';
+import { VendorFormModal } from '@/components/admin/VendorFormModal';
+import { TransactionFormModal } from '@/components/admin/TransactionFormModal';
 
 interface AdminDashboardClientProps {
   initialProducts: Product[];
@@ -49,18 +75,37 @@ interface AdminDashboardClientProps {
     totalInventoryValue: number;
     totalCategories: number;
   };
+  initialVendors?: Vendor[];
+  initialTransactions?: StoreTransaction[];
+  initialStoreMetrics?: {
+    retailInventoryValue: number;
+    costInventoryValue: number;
+    potentialProfit: number;
+    grossMarginPercent: number;
+    totalUnitsInStock: number;
+    totalSalesRevenue: number;
+    totalExpenses: number;
+    totalPurchases: number;
+    netProfit: number;
+    lowStockReplenishmentCost: number;
+  };
 }
 
 export default function AdminDashboardClient({
   initialProducts,
   initialCategories,
   initialStats,
+  initialVendors = [],
+  initialTransactions = [],
+  initialStoreMetrics,
 }: AdminDashboardClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'categories'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'categories' | 'crm' | 'vendors'>('overview');
 
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [vendors, setVendors] = useState<Vendor[]>(initialVendors);
+  const [transactions, setTransactions] = useState<StoreTransaction[]>(initialTransactions);
   const [stats, setStats] = useState(initialStats);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -69,12 +114,28 @@ export default function AdminDashboardClient({
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Search & Filters for Store Transactions & Vendors
+  const [txFilterType, setTxFilterType] = useState<'all' | 'sale' | 'expense' | 'purchase_order' | 'refund'>('all');
+  const [txSearchQuery, setTxSearchQuery] = useState('');
+  const [vendorSearchQuery, setVendorSearchQuery] = useState('');
+  const [vendorStatusFilter, setVendorStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
   // Modal States
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [deleteConfirmation, setDeleteConfirmation] = useState<{ type: 'product' | 'category'; id: string; name: string } | null>(null);
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [prefilledTxType, setPrefilledTxType] = useState<'sale' | 'expense' | 'purchase_order' | 'refund'>('sale');
+  const [prefilledVendorId, setPrefilledVendorId] = useState<string>('');
+
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    type: 'product' | 'category' | 'vendor' | 'transaction';
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Toast State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -84,15 +145,70 @@ export default function AdminDashboardClient({
     setTimeout(() => setToast(null), 3500);
   };
 
+  // Real-time computed Store CRM Financial Metrics based on actual catalog & transaction state
+  const computedMetrics = useMemo(() => {
+    let retailInventoryValue = 0;
+    let costInventoryValue = 0;
+    let totalUnitsInStock = 0;
+    let lowStockReplenishmentCost = 0;
+
+    products.forEach((p) => {
+      const qty = p.stockQuantity ?? 0;
+      const price = p.discountPrice || p.price || 0;
+      const cost = p.costPrice != null ? p.costPrice : Math.round(p.price * 0.7);
+      retailInventoryValue += price * qty;
+      costInventoryValue += cost * qty;
+      totalUnitsInStock += qty;
+      if (qty <= 10) {
+        lowStockReplenishmentCost += Math.max(0, 15 - qty) * cost;
+      }
+    });
+
+    const potentialGrossProfit = Math.max(0, retailInventoryValue - costInventoryValue);
+    const potentialMarginPercent = retailInventoryValue > 0 ? (potentialGrossProfit / retailInventoryValue) * 100 : 0;
+
+    let totalSalesRevenue = 0;
+    let totalExpenses = 0;
+    let totalPurchases = 0;
+    let totalRefunds = 0;
+
+    transactions.forEach((tx) => {
+      if (tx.status === 'completed' || !tx.status) {
+        if (tx.type === 'sale') totalSalesRevenue += tx.amount;
+        else if (tx.type === 'expense') totalExpenses += tx.amount;
+        else if (tx.type === 'purchase_order') totalPurchases += tx.amount;
+        else if (tx.type === 'refund') totalRefunds += tx.amount;
+      }
+    });
+
+    const netCashProfit = totalSalesRevenue - totalExpenses - totalRefunds;
+
+    return {
+      retailInventoryValue,
+      costInventoryValue,
+      potentialGrossProfit,
+      potentialMarginPercent: Math.round(potentialMarginPercent * 10) / 10,
+      totalUnitsInStock,
+      totalSalesRevenue,
+      totalExpenses,
+      totalPurchases,
+      totalRefunds,
+      netCashProfit,
+      lowStockReplenishmentCost,
+    };
+  }, [products, transactions]);
+
   // Refresh all data from APIs
   const refreshData = async (showNotification: boolean | unknown = true) => {
     const notify = typeof showNotification === 'boolean' ? showNotification : true;
     setIsRefreshing(true);
     try {
-      const [prodRes, catRes, statsRes] = await Promise.all([
+      const [prodRes, catRes, statsRes, venRes, txRes] = await Promise.all([
         fetch('/api/admin/products'),
         fetch('/api/admin/categories'),
         fetch('/api/admin/stats'),
+        fetch('/api/admin/vendors'),
+        fetch('/api/admin/store/transactions'),
       ]);
 
       if (prodRes.ok) {
@@ -106,6 +222,14 @@ export default function AdminDashboardClient({
       if (statsRes.ok) {
         const sData = await statsRes.json();
         setStats(sData.stats);
+      }
+      if (venRes.ok) {
+        const vData = await venRes.json();
+        setVendors(vData.vendors || []);
+      }
+      if (txRes.ok) {
+        const tData = await txRes.json();
+        setTransactions(tData.transactions || []);
       }
       if (notify) {
         showToast('Data refreshed successfully');
@@ -220,7 +344,7 @@ export default function AdminDashboardClient({
         } else {
           showToast('Failed to delete product', 'error');
         }
-      } else {
+      } else if (type === 'category') {
         const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
         if (res.ok) {
           setCategories((prev) => prev.filter((c) => c._id !== id && (c as any).id !== id));
@@ -229,6 +353,26 @@ export default function AdminDashboardClient({
           router.refresh();
         } else {
           showToast('Failed to delete category', 'error');
+        }
+      } else if (type === 'vendor') {
+        const res = await fetch(`/api/admin/vendors/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          setVendors((prev) => prev.filter((v) => v._id !== id && v.id !== id));
+          showToast('Vendor deleted successfully');
+          await refreshData(false);
+          router.refresh();
+        } else {
+          showToast('Failed to delete vendor', 'error');
+        }
+      } else if (type === 'transaction') {
+        const res = await fetch(`/api/admin/store/transactions?id=${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          setTransactions((prev) => prev.filter((t) => t._id !== id && t.id !== id));
+          showToast('Transaction removed from ledger');
+          await refreshData(false);
+          router.refresh();
+        } else {
+          showToast('Failed to delete transaction', 'error');
         }
       }
     } catch {
@@ -290,7 +434,7 @@ export default function AdminDashboardClient({
           <nav className="hidden md:flex items-center gap-1 bg-secondary/40 p-1.5 rounded-2xl border border-border/40">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'overview'
                   ? 'bg-primary text-primary-foreground shadow-sm dark:bg-white dark:text-black'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
@@ -302,7 +446,7 @@ export default function AdminDashboardClient({
 
             <button
               onClick={() => setActiveTab('products')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'products'
                   ? 'bg-primary text-primary-foreground shadow-sm dark:bg-white dark:text-black'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
@@ -317,7 +461,7 @@ export default function AdminDashboardClient({
 
             <button
               onClick={() => setActiveTab('categories')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'categories'
                   ? 'bg-primary text-primary-foreground shadow-sm dark:bg-white dark:text-black'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
@@ -327,6 +471,36 @@ export default function AdminDashboardClient({
               <span>Categories</span>
               <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-primary/20 text-current">
                 {categories.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('crm')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'crm'
+                  ? 'bg-primary text-primary-foreground shadow-sm dark:bg-white dark:text-black'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+              }`}
+            >
+              <Calculator className="w-4 h-4" />
+              <span>Store CRM</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold">
+                Calc
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('vendors')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'vendors'
+                  ? 'bg-primary text-primary-foreground shadow-sm dark:bg-white dark:text-black'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Vendors</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-primary/20 text-current">
+                {vendors.length}
               </span>
             </button>
           </nav>
@@ -366,36 +540,56 @@ export default function AdminDashboardClient({
         </div>
 
         {/* Mobile Tab Bar */}
-        <div className="md:hidden flex items-center justify-around border-t border-border/40 px-2 py-1.5 bg-secondary/10">
+        <div className="md:hidden flex items-center gap-1.5 overflow-x-auto px-3 py-2 bg-secondary/15 border-t border-border/40 scrollbar-none">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`flex-1 py-2 text-xs font-bold text-center rounded-xl transition-all ${
+            className={`flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'overview'
-                ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black'
-                : 'text-muted-foreground'
+                ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Overview
           </button>
           <button
             onClick={() => setActiveTab('products')}
-            className={`flex-1 py-2 text-xs font-bold text-center rounded-xl transition-all ${
+            className={`flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'products'
-                ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black'
-                : 'text-muted-foreground'
+                ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Products ({products.length})
           </button>
           <button
             onClick={() => setActiveTab('categories')}
-            className={`flex-1 py-2 text-xs font-bold text-center rounded-xl transition-all ${
+            className={`flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'categories'
-                ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black'
-                : 'text-muted-foreground'
+                ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Categories ({categories.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('crm')}
+            className={`flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+              activeTab === 'crm'
+                ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Store CRM & Calc
+          </button>
+          <button
+            onClick={() => setActiveTab('vendors')}
+            className={`flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+              activeTab === 'vendors'
+                ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Vendors ({vendors.length})
           </button>
         </div>
       </header>
@@ -534,6 +728,83 @@ export default function AdminDashboardClient({
                 </div>
                 <div className="mt-2 text-xs font-medium text-muted-foreground">
                   Estimated stock retail total
+                </div>
+              </div>
+            </div>
+
+            {/* Store CRM & Supplier Intelligence Highlights */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              {/* CRM Card */}
+              <div 
+                onClick={() => setActiveTab('crm')}
+                className="p-6 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-card to-background border border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-xl transition-all cursor-pointer group space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Calculator className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base text-foreground">Store CRM & Financials</h3>
+                      <p className="text-xs text-muted-foreground">Cashflow, margins & calculators</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    <span>Open Suite</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/40 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Potential Profit in Stock</span>
+                    <span className="font-black text-sm text-foreground">
+                      Rs. {computedMetrics.potentialGrossProfit.toLocaleString()} ({computedMetrics.potentialMarginPercent}%)
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Realized Sales Ledger</span>
+                    <span className="font-black text-sm text-emerald-600 dark:text-emerald-400">
+                      Rs. {computedMetrics.totalSalesRevenue.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vendors Card */}
+              <div 
+                onClick={() => setActiveTab('vendors')}
+                className="p-6 rounded-3xl bg-gradient-to-br from-blue-500/10 via-card to-background border border-blue-500/20 hover:border-blue-500/40 hover:shadow-xl transition-all cursor-pointer group space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base text-foreground">Supplier & Vendor Portal</h3>
+                      <p className="text-xs text-muted-foreground">Manufacturer tracking & terms</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    <span>Manage Vendors</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/40 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Registered Suppliers</span>
+                    <span className="font-black text-sm text-foreground">
+                      {vendors.length} ({vendors.filter(v => v.isActive !== false).length} Active)
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Total Accounts Payable</span>
+                    <span className="font-black text-sm text-amber-600 dark:text-amber-400">
+                      Rs. {vendors.reduce((a, v) => a + (v.balanceDue || 0), 0).toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1108,6 +1379,664 @@ export default function AdminDashboardClient({
             </div>
           </div>
         )}
+
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 4: STORE CRM & CALCULATIONS */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        {activeTab === 'crm' && (
+          <div className="space-y-8 animate-in fade-in duration-200">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>Store CRM & Intelligence</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                  Store Financials & Calculations
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  Inventory valuations, cost basis, interactive pricing margin models, and transaction ledger.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  onClick={() => {
+                    setPrefilledTxType('sale');
+                    setPrefilledVendorId('');
+                    setIsTransactionModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary text-primary-foreground font-bold text-xs shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all dark:bg-white dark:text-black cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Record Sale</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setPrefilledTxType('purchase_order');
+                    setPrefilledVendorId('');
+                    setIsTransactionModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-secondary hover:bg-secondary/80 text-foreground font-bold text-xs border border-border/50 transition-all cursor-pointer"
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Record Restock PO</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Financial Overview Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Retail Stock Value
+                </span>
+                <span className="text-lg sm:text-xl font-black text-foreground block truncate">
+                  Rs. {computedMetrics.retailInventoryValue.toLocaleString()}
+                </span>
+                <span className="text-[10px] text-muted-foreground block">
+                  {computedMetrics.totalUnitsInStock} total units
+                </span>
+              </div>
+
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Inventory Cost Basis
+                </span>
+                <span className="text-lg sm:text-xl font-black text-foreground block truncate">
+                  Rs. {computedMetrics.costInventoryValue.toLocaleString()}
+                </span>
+                <span className="text-[10px] text-muted-foreground block">
+                  Wholesale capital tied up
+                </span>
+              </div>
+
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Potential Gross Profit
+                </span>
+                <span className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400 block truncate">
+                  Rs. {computedMetrics.potentialGrossProfit.toLocaleString()}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 block">
+                  {computedMetrics.potentialMarginPercent}% Gross Margin
+                </span>
+              </div>
+
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Realized Sales Revenue
+                </span>
+                <span className="text-lg sm:text-xl font-black text-foreground block truncate">
+                  Rs. {computedMetrics.totalSalesRevenue.toLocaleString()}
+                </span>
+                <span className="text-[10px] text-muted-foreground block">
+                  Completed orders
+                </span>
+              </div>
+
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Operating Expenses
+                </span>
+                <span className="text-lg sm:text-xl font-black text-rose-500 block truncate">
+                  Rs. {computedMetrics.totalExpenses.toLocaleString()}
+                </span>
+                <span className="text-[10px] text-muted-foreground block">
+                  Courier, ads, packaging
+                </span>
+              </div>
+
+              <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Net Realized Cash
+                </span>
+                <span className={`text-lg sm:text-xl font-black block truncate ${
+                  computedMetrics.netCashProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'
+                }`}>
+                  Rs. {computedMetrics.netCashProfit.toLocaleString()}
+                </span>
+                <span className="text-[10px] text-muted-foreground block">
+                  Inflows less outflows
+                </span>
+              </div>
+            </div>
+
+            {/* Replenishment Cost Alert Banner */}
+            {computedMetrics.lowStockReplenishmentCost > 0 && (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                  <div>
+                    <span className="font-bold text-foreground block">
+                      Low-Stock Capital Required: Rs. {computedMetrics.lowStockReplenishmentCost.toLocaleString()}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Estimated procurement budget to bring all {products.filter(p => (p.stockQuantity ?? 0) <= 10).length} low-stock products to a safe 15-unit buffer.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setStatusFilter('low_stock');
+                    setActiveTab('products');
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-white font-bold text-xs whitespace-nowrap self-start sm:self-auto hover:bg-amber-600 transition-all"
+                >
+                  Review Low Stock Products
+                </button>
+              </div>
+            )}
+
+            {/* Interactive Calculator Suite */}
+            <StoreCalculatorsSuite />
+
+            {/* CRM Store Transactions & Ledger */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-foreground">Store Transaction Ledger</h3>
+                  <p className="text-xs text-muted-foreground">Detailed log of sales orders, restocks, operational expenses and refunds</p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setPrefilledTxType('expense');
+                    setPrefilledVendorId('');
+                    setIsTransactionModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground font-bold text-xs border border-border/50 self-start sm:self-auto"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Log Expense</span>
+                </button>
+              </div>
+
+              {/* Filters & Search */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search by title, customer, vendor, category..."
+                    value={txSearchQuery}
+                    onChange={(e) => setTxSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  {txSearchQuery && (
+                    <button
+                      onClick={() => setTxSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                  {(['all', 'sale', 'purchase_order', 'expense', 'refund'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTxFilterType(t)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all whitespace-nowrap ${
+                        txFilterType === t
+                          ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black shadow-sm'
+                          : 'bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {t === 'all' ? 'All Ledger' : t.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Transactions Table (Desktop) */}
+              <div className="hidden md:block rounded-2xl bg-card border border-border/50 overflow-hidden shadow-sm">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-secondary/40 border-b border-border/40 text-muted-foreground font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4">Type</th>
+                      <th className="py-3 px-4">Title & Details</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">Party / Vendor</th>
+                      <th className="py-3 px-4 text-right">Amount</th>
+                      <th className="py-3 px-4 text-center">Status</th>
+                      <th className="py-3 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {transactions
+                      .filter((tx) => {
+                        const matchType = txFilterType === 'all' || tx.type === txFilterType;
+                        const matchSearch =
+                          txSearchQuery === '' ||
+                          tx.title.toLowerCase().includes(txSearchQuery.toLowerCase()) ||
+                          (tx.customerName && tx.customerName.toLowerCase().includes(txSearchQuery.toLowerCase())) ||
+                          (tx.vendorName && tx.vendorName.toLowerCase().includes(txSearchQuery.toLowerCase())) ||
+                          (tx.category && tx.category.toLowerCase().includes(txSearchQuery.toLowerCase()));
+                        return matchType && matchSearch;
+                      })
+                      .map((tx) => {
+                        const isIncome = tx.type === 'sale';
+                        return (
+                          <tr key={tx._id || tx.id} className="hover:bg-secondary/20 transition-colors">
+                            <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
+                              {tx.transactionDate ? new Date(tx.transactionDate).toLocaleDateString() : 'Recent'}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                tx.type === 'sale'
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                  : tx.type === 'purchase_order'
+                                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                  : tx.type === 'refund'
+                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                              }`}>
+                                {tx.type.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="font-bold text-foreground block">{tx.title}</span>
+                              {tx.quantity && (
+                                <span className="text-[11px] text-muted-foreground">Qty: {tx.quantity} units</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-muted-foreground">{tx.category || '-'}</td>
+                            <td className="py-3 px-4 text-muted-foreground">
+                              {tx.customerName ? `Cust: ${tx.customerName}` : tx.vendorName ? `Ven: ${tx.vendorName}` : '-'}
+                            </td>
+                            <td className="py-3 px-4 text-right font-black">
+                              <span className={isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}>
+                                {isIncome ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary text-muted-foreground">
+                                {tx.status || 'completed'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                onClick={() => setDeleteConfirmation({
+                                  type: 'transaction',
+                                  id: tx._id || tx.id || '',
+                                  name: tx.title,
+                                })}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                                title="Delete transaction"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Transactions Cards (Mobile) */}
+              <div className="md:hidden space-y-3">
+                {transactions
+                  .filter((tx) => {
+                    const matchType = txFilterType === 'all' || tx.type === txFilterType;
+                    const matchSearch =
+                      txSearchQuery === '' ||
+                      tx.title.toLowerCase().includes(txSearchQuery.toLowerCase()) ||
+                      (tx.customerName && tx.customerName.toLowerCase().includes(txSearchQuery.toLowerCase())) ||
+                      (tx.vendorName && tx.vendorName.toLowerCase().includes(txSearchQuery.toLowerCase()));
+                    return matchType && matchSearch;
+                  })
+                  .map((tx) => {
+                    const isIncome = tx.type === 'sale';
+                    return (
+                      <div key={tx._id || tx.id} className="p-4 rounded-2xl bg-card border border-border/50 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mb-1 ${
+                              tx.type === 'sale'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                : tx.type === 'purchase_order'
+                                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                            }`}>
+                              {tx.type.replace('_', ' ')}
+                            </span>
+                            <h4 className="font-bold text-sm text-foreground">{tx.title}</h4>
+                          </div>
+                          <span className={`font-black text-sm whitespace-nowrap ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
+                            {isIncome ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/30">
+                          <span>{tx.category}</span>
+                          <button
+                            onClick={() => setDeleteConfirmation({
+                              type: 'transaction',
+                              id: tx._id || tx.id || '',
+                              name: tx.title,
+                            })}
+                            className="text-destructive font-bold text-xs"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 5: VENDORS & SUPPLIERS DIRECTORY */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        {activeTab === 'vendors' && (
+          <div className="space-y-8 animate-in fade-in duration-200">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Procurement & Sourcing</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                  Vendors & Supplier Management
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  Manage distributors, wholesale contacts, payment terms, and product sourcing channels.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setEditingVendor(null);
+                  setIsVendorModalOpen(true);
+                }}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all dark:bg-white dark:text-black cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Supplier / Vendor</span>
+              </button>
+            </div>
+
+            {/* Vendor Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+                  Total Suppliers
+                </span>
+                <span className="text-2xl sm:text-3xl font-black text-foreground block">
+                  {vendors.length}
+                </span>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold block">
+                  {vendors.filter((v) => v.isActive !== false).length} Active Partners
+                </span>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+                  Products Sourced
+                </span>
+                <span className="text-2xl sm:text-3xl font-black text-foreground block">
+                  {products.filter((p) => Boolean(p.vendorId)).length}
+                </span>
+                <span className="text-xs text-muted-foreground block">
+                  Linked to suppliers
+                </span>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+                  Sourced Stock Value
+                </span>
+                <span className="text-2xl sm:text-3xl font-black text-foreground block truncate">
+                  Rs. {products
+                    .filter((p) => Boolean(p.vendorId))
+                    .reduce((a, p) => a + (p.price * (p.stockQuantity ?? 1)), 0)
+                    .toLocaleString()}
+                </span>
+                <span className="text-xs text-muted-foreground block">
+                  In warehouse inventory
+                </span>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-card border border-border/50 space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+                  Accounts Payable
+                </span>
+                <span className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 block truncate">
+                  Rs. {vendors.reduce((a, v) => a + (v.balanceDue || 0), 0).toLocaleString()}
+                </span>
+                <span className="text-xs text-muted-foreground block">
+                  Outstanding balance due
+                </span>
+              </div>
+            </div>
+
+            {/* Search & Status Filters */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search vendors by name, company, phone, contact..."
+                  value={vendorSearchQuery}
+                  onChange={(e) => setVendorSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-background border border-border/60 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                {vendorSearchQuery && (
+                  <button
+                    onClick={() => setVendorSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {(['all', 'active', 'inactive'] as const).map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => setVendorStatusFilter(st)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold capitalize transition-all ${
+                      vendorStatusFilter === st
+                        ? 'bg-primary text-primary-foreground dark:bg-white dark:text-black shadow-sm'
+                        : 'bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {st === 'all' ? 'All Vendors' : st}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Vendors Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {vendors
+                .filter((v) => {
+                  const matchSearch =
+                    vendorSearchQuery === '' ||
+                    v.name.toLowerCase().includes(vendorSearchQuery.toLowerCase()) ||
+                    (v.company && v.company.toLowerCase().includes(vendorSearchQuery.toLowerCase())) ||
+                    (v.contactPerson && v.contactPerson.toLowerCase().includes(vendorSearchQuery.toLowerCase())) ||
+                    (v.phone && v.phone.includes(vendorSearchQuery));
+
+                  let matchStatus = true;
+                  if (vendorStatusFilter === 'active') matchStatus = v.isActive !== false;
+                  else if (vendorStatusFilter === 'inactive') matchStatus = v.isActive === false;
+
+                  return matchSearch && matchStatus;
+                })
+                .map((v) => {
+                  const linkedProducts = products.filter(
+                    (p) => p.vendorId === (v._id || v.id) || p.vendorName === v.name
+                  );
+
+                  return (
+                    <div
+                      key={v._id || v.id}
+                      className="p-6 rounded-3xl bg-card border border-border/50 hover:border-primary/40 hover:shadow-xl transition-all flex flex-col justify-between space-y-5"
+                    >
+                      <div className="space-y-4">
+                        {/* Title Bar */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <span className="text-[10px] font-bold text-primary uppercase tracking-widest block">
+                              {v.company || 'Direct Supplier'}
+                            </span>
+                            <h3 className="text-lg font-black text-foreground leading-snug">{v.name}</h3>
+                          </div>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            v.isActive !== false
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {v.isActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+
+                        {/* Contact details */}
+                        <div className="space-y-2 text-xs text-muted-foreground">
+                          {v.contactPerson && (
+                            <div className="flex items-center gap-2">
+                              <Users className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                              <span className="text-foreground font-medium">{v.contactPerson}</span>
+                            </div>
+                          )}
+                          {v.phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                              <a
+                                href={`tel:${v.phone}`}
+                                className="text-foreground hover:text-primary transition-colors font-medium"
+                              >
+                                {v.phone}
+                              </a>
+                            </div>
+                          )}
+                          {v.email && (
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                              <a
+                                href={`mailto:${v.email}`}
+                                className="text-foreground hover:text-primary transition-colors font-medium truncate"
+                              >
+                                {v.email}
+                              </a>
+                            </div>
+                          )}
+                          {v.address && (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                              <span className="truncate">{v.address}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Terms & Balance Due */}
+                        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/40 text-xs">
+                          <div className="p-3 rounded-xl bg-secondary/40">
+                            <span className="text-muted-foreground block text-[10px] font-bold">Terms</span>
+                            <span className="font-bold text-foreground truncate block">
+                              {v.paymentTerms || 'Net 30'}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground block mt-0.5">
+                              Lead: {v.leadTimeDays ?? 7} days
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-secondary/40">
+                            <span className="text-muted-foreground block text-[10px] font-bold">Balance Due</span>
+                            <span className={`font-black text-xs truncate block ${
+                              (v.balanceDue || 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'
+                            }`}>
+                              Rs. {(v.balanceDue || 0).toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground block mt-0.5">
+                              {linkedProducts.length} items supplied
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Linked products preview */}
+                        {linkedProducts.length > 0 && (
+                          <div className="pt-2">
+                            <span className="text-[11px] font-bold text-muted-foreground block mb-1.5">
+                              Supplied Products ({linkedProducts.length}):
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {linkedProducts.slice(0, 3).map((lp) => (
+                                <span
+                                  key={lp._id || lp.id}
+                                  className="px-2 py-0.5 rounded-lg bg-secondary text-[11px] font-semibold text-foreground truncate max-w-[160px]"
+                                >
+                                  {lp.title}
+                                </span>
+                              ))}
+                              {linkedProducts.length > 3 && (
+                                <span className="px-2 py-0.5 rounded-lg bg-secondary text-[11px] font-semibold text-muted-foreground">
+                                  +{linkedProducts.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-between pt-3 border-t border-border/40">
+                        <button
+                          onClick={() => {
+                            setPrefilledVendorId(v._id || v.id || '');
+                            setPrefilledTxType('purchase_order');
+                            setIsTransactionModalOpen(true);
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold transition-all"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Restock</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingVendor(v);
+                              setIsVendorModalOpen(true);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-bold transition-all"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              setDeleteConfirmation({
+                                type: 'vendor',
+                                id: v._id || v.id || '',
+                                name: v.name,
+                              })
+                            }
+                            className="p-1.5 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                            title="Delete supplier"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ───────────────────────────────────────────────────────────── */}
@@ -1117,6 +2046,7 @@ export default function AdminDashboardClient({
         <ProductFormModal
           product={editingProduct}
           categories={categories}
+          vendors={vendors}
           onClose={() => {
             setIsProductModalOpen(false);
             setEditingProduct(null);
@@ -1180,6 +2110,61 @@ export default function AdminDashboardClient({
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
+      {/* VENDOR CREATE / EDIT MODAL */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {isVendorModalOpen && (
+        <VendorFormModal
+          vendor={editingVendor}
+          onClose={() => {
+            setIsVendorModalOpen(false);
+            setEditingVendor(null);
+          }}
+          onSaved={async (savedVendor) => {
+            const wasEdit = Boolean(editingVendor);
+            setIsVendorModalOpen(false);
+            setEditingVendor(null);
+
+            setVendors((prev) => {
+              const targetKey = savedVendor._id || savedVendor.id;
+              const exists = prev.some((v) => (v._id || v.id) === targetKey);
+              if (exists) {
+                return prev.map((v) => ((v._id || v.id) === targetKey ? savedVendor : v));
+              }
+              return [savedVendor, ...prev];
+            });
+
+            showToast(wasEdit ? 'Supplier updated successfully' : 'New supplier registered in directory');
+            await refreshData(false);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TRANSACTION RECORD MODAL */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {isTransactionModalOpen && (
+        <TransactionFormModal
+          transaction={null}
+          products={products}
+          vendors={vendors}
+          initialType={prefilledTxType}
+          initialVendorId={prefilledVendorId}
+          onClose={() => {
+            setIsTransactionModalOpen(false);
+          }}
+          onSaved={async (savedTx) => {
+            setIsTransactionModalOpen(false);
+
+            setTransactions((prev) => [savedTx, ...prev]);
+            showToast('Transaction posted to store ledger');
+            await refreshData(false);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
       {/* DELETE CONFIRMATION MODAL */}
       {/* ───────────────────────────────────────────────────────────── */}
       {deleteConfirmation && (
@@ -1224,11 +2209,12 @@ export default function AdminDashboardClient({
 interface ProductFormModalProps {
   product: Product | null;
   categories: Category[];
+  vendors: Vendor[];
   onClose: () => void;
   onSaved: (product: Product) => void;
 }
 
-function ProductFormModal({ product, categories, onClose, onSaved }: ProductFormModalProps) {
+function ProductFormModal({ product, categories, vendors, onClose, onSaved }: ProductFormModalProps) {
   const isEdit = Boolean(product);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -1240,6 +2226,9 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
   const [sku, setSku] = useState(product?.sku || '');
   const [price, setPrice] = useState<number | ''>(product?.price || '');
   const [discountPrice, setDiscountPrice] = useState<number | ''>(product?.discountPrice || '');
+  const [costPrice, setCostPrice] = useState<number | ''>(product?.costPrice ?? '');
+  const [vendorId, setVendorId] = useState<string>(product?.vendorId || '');
+  const [vendorName, setVendorName] = useState<string>(product?.vendorName || '');
   const [category, setCategory] = useState(product?.category || (categories[0]?.title || 'Smart Watches'));
   const [categorySlug, setCategorySlug] = useState(product?.categorySlug || (categories[0]?.slug || 'smart-watches'));
   const [description, setDescription] = useState(product?.description || '');
@@ -1276,6 +2265,17 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
     const cat = categories.find((c) => c.title === selectedTitle);
     if (cat) {
       setCategorySlug(cat.slug);
+    }
+  };
+
+  const handleVendorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = e.target.value;
+    setVendorId(selectedId);
+    if (!selectedId) {
+      setVendorName('');
+    } else {
+      const v = vendors.find((ven) => (ven._id === selectedId || ven.id === selectedId));
+      setVendorName(v ? v.name : '');
     }
   };
 
@@ -1345,6 +2345,9 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
       sku,
       price: Number(price),
       discountPrice: discountPrice !== '' ? Number(discountPrice) : null,
+      costPrice: costPrice !== '' ? Number(costPrice) : null,
+      vendorId: vendorId || null,
+      vendorName: vendorName || null,
       category,
       categorySlug,
       description,
@@ -1483,10 +2486,19 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
 
           {/* Section 2: Pricing & Stock */}
           <div className="space-y-4 pt-4 border-t border-border/40">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-primary">2. Pricing & Inventory</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-primary">2. Pricing, Cost Basis & Vendor</h3>
+              {costPrice !== '' && price !== '' && (
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                  Gross Profit: Rs. {((discountPrice !== '' ? Number(discountPrice) : Number(price)) - Number(costPrice)).toLocaleString()} (
+                  {Math.round((((discountPrice !== '' ? Number(discountPrice) : Number(price)) - Number(costPrice)) / (discountPrice !== '' ? Number(discountPrice) : Number(price))) * 1000) / 10}% Margin)
+                </span>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-1.5">
-                <label className="font-bold text-foreground">Price (Rs.) *</label>
+                <label className="font-bold text-foreground">Retail Price (Rs.) *</label>
                 <input
                   type="number"
                   required
@@ -1494,7 +2506,7 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
                   placeholder="29900"
                   value={price}
                   onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border/60 text-foreground"
+                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border/60 text-foreground font-semibold"
                 />
               </div>
 
@@ -1510,6 +2522,36 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="font-bold text-foreground">Wholesale Cost (Rs.)</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Cost basis"
+                  value={costPrice}
+                  onChange={(e) => setCostPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border/60 text-foreground"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-foreground">Supplier / Vendor</label>
+                <select
+                  value={vendorId}
+                  onChange={handleVendorChange}
+                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border/60 text-foreground text-xs"
+                >
+                  <option value="">Direct / In-House</option>
+                  {vendors.map((v) => (
+                    <option key={v._id || v.id} value={v._id || v.id}>
+                      {v.name} {v.company ? `(${v.company})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="font-bold text-foreground">Stock Units</label>
                 <input

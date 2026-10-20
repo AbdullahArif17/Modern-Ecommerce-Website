@@ -104,6 +104,9 @@ export async function POST(request: Request) {
       productTags = [],
       metaTitle,
       metaDescription,
+      costPrice,
+      vendorId,
+      vendorName,
     } = body;
 
     if (!title || price === undefined) {
@@ -137,13 +140,15 @@ export async function POST(request: Request) {
 
     const result = await sql`
       INSERT INTO products (
-        id, title, name, slug, brand, sku, price, discount_price, description, long_description,
-        category_id, category, category_slug, images, image, video_url, featured, is_active,
-        sort_order, stock_quantity, stock_status, features, specifications, whats_in_the_box,
-        warranty, weight, colors, sizes, product_tags, meta_title, meta_description
+        id, title, name, slug, brand, sku, price, discount_price, cost_price, vendor_id, vendor_name,
+        description, long_description, category_id, category, category_slug, images, image, video_url,
+        featured, is_active, sort_order, stock_quantity, stock_status, features, specifications,
+        whats_in_the_box, warranty, weight, colors, sizes, product_tags, meta_title, meta_description
       ) VALUES (
         ${id}, ${title}, ${name || title}, ${uniqueSlug}, ${brand}, ${sku}, ${price}, 
-        ${discountPrice ? Number(discountPrice) : null}, ${description}, 
+        ${discountPrice ? Number(discountPrice) : null}, ${costPrice ? Number(costPrice) : null},
+        ${vendorId || null}, ${vendorName || null},
+        ${description}, 
         ${longDescription ? JSON.stringify(longDescription) : null}::jsonb,
         ${categoryId || null}, ${category}, ${categorySlug || slugify(category)},
         ${JSON.stringify(images)}::jsonb, ${primaryImage}, ${videoUrl || null}, 
