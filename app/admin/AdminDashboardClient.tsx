@@ -1675,12 +1675,24 @@ export default function AdminDashboardClient({
                           </tr>
                         );
                       })}
+                    {transactions.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
+                          No transactions recorded yet. Click <strong>&quot;+ Record Transaction&quot;</strong> above to record sales, expenses, or purchase orders.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
 
               {/* Transactions Cards (Mobile) */}
               <div className="md:hidden space-y-3">
+                {transactions.length === 0 && (
+                  <div className="p-8 text-center text-muted-foreground text-xs rounded-2xl bg-secondary/20 border border-dashed border-border/60">
+                    No transactions recorded yet. Tap &quot;+ Record&quot; to log your first transaction.
+                  </div>
+                )}
                 {transactions
                   .filter((tx) => {
                     const matchType = txFilterType === 'all' || tx.type === txFilterType;
@@ -2034,6 +2046,29 @@ export default function AdminDashboardClient({
                     </div>
                   );
                 })}
+
+              {vendors.length === 0 && (
+                <div className="col-span-full p-12 text-center rounded-3xl bg-card border border-dashed border-border/80 flex flex-col items-center justify-center space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+                    <Building2 className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-black text-foreground">No Vendors Registered Yet</h3>
+                    <p className="text-xs text-muted-foreground max-w-sm">
+                      Keep track of your suppliers, manufacturers, payment terms, and wholesale accounts in one place.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingVendor(null);
+                      setIsVendorModalOpen(true);
+                    }}
+                    className="px-5 py-2.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl shadow-md hover:opacity-95 transition-all dark:bg-white dark:text-black"
+                  >
+                    + Add Your First Vendor
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

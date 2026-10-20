@@ -38,81 +38,42 @@ const client = createClient({
 const products = [
   {
     _type: 'product',
-    title: 'Chronos Elite',
+    title: 'Logitech B100 Optical USB Mouse',
     slug: {
       _type: 'slug',
-      current: 'chronos-elite'
+      current: 'logitech-b100-optical-usb-mouse'
     },
-    price: 29900, // Price in PKR (299 * 100)
-    description: 'The ultimate companion for your active lifestyle. Precision tracking meets elegant design.',
-    category: 'smart-watches',
+    price: 1150,
+    description: 'It works right out of the box. This plug-and-play mouse is simple to set up—you just plug it into your USB and get back to business.',
+    category: 'mouse',
     featured: true,
-    features: ['Always-on Retina Display', 'ECG App', 'Water Resistant 50m']
+    features: ['Ready in No Time', 'Comfort for Either Hand', 'Durable and Reliable', 'Broad Compatibility']
   },
   {
     _type: 'product',
-    title: 'AeroBuds Pro',
+    title: 'Usb',
     slug: {
       _type: 'slug',
-      current: 'aerobuds-pro'
+      current: 'usb'
     },
-    price: 19900,
-    description: 'Immersive sound with active noise cancellation. Tune out the world and tune in to your music.',
-    category: 'earbuds',
+    price: 1150,
+    description: 'High-speed reliable USB storage and connectivity adapter.',
+    category: 'accessories',
     featured: true,
-    features: ['Active Noise Cancellation', '24h Battery Life', 'Wireless Charging']
+    features: ['High-speed data transfer', 'Plug and play', 'Compact durable housing']
   },
   {
     _type: 'product',
-    title: 'Studio Master',
+    title: 'Stand',
     slug: {
       _type: 'slug',
-      current: 'studio-master'
+      current: 'stand'
     },
-    price: 34900,
-    description: 'Professional grade studio headphones for the audiophile in you.',
-    category: 'headphones',
+    price: 1100,
+    description: 'Universal ergonomic stand for comfortable device viewing.',
+    category: 'accessories',
     featured: true,
-    features: ['High-Fidelity Audio', 'Memory Foam Ear Cushions', 'Detachable Cable']
-  },
-  {
-    _type: 'product',
-    title: 'Chronos Sport',
-    slug: {
-      _type: 'slug',
-      current: 'chronos-sport'
-    },
-    price: 14900,
-    description: 'Lightweight, durable, and ready for any workout.',
-    category: 'smart-watches',
-    featured: false,
-    features: ['Heart Rate Monitor', 'GPS Tracking', 'Sleep Analysis']
-  },
-  {
-    _type: 'product',
-    title: 'AeroBuds Lite',
-    slug: {
-      _type: 'slug',
-      current: 'aerobuds-lite'
-    },
-    price: 9900,
-    description: 'Premium sound at an accessible price point.',
-    category: 'earbuds',
-    featured: false,
-    features: ['Touch Controls', 'IPX4 Water Resistance', 'Quick Pairing']
-  },
-  {
-    _type: 'product',
-    title: 'Sonic Over-Ear',
-    slug: {
-      _type: 'slug',
-      current: 'sonic-over-ear'
-    },
-    price: 24900,
-    description: 'Comfortable over-ear headphones with deep bass and crisp highs.',
-    category: 'headphones',
-    featured: false,
-    features: ['40mm Drivers', '30h Playtime', 'Foldable Design']
+    features: ['Ergonomic angle', 'Durable construction', 'Universal fit']
   }
 ];
 
