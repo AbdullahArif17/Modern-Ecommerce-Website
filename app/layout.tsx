@@ -6,6 +6,7 @@ import { Footer } from '@/components/Footer'
 import { CartDrawer } from '@/components/CartDrawer'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { MobileBottomNav } from '@/components/MobileBottomNav'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -65,6 +66,7 @@ export default function RootLayout({
           <Navbar />
           <CartDrawer />
           <MobileBottomNav />
+          <WhatsAppButton />
           <main className="flex-1 bg-background text-foreground pb-16 md:pb-0">
             {children}
           </main>
