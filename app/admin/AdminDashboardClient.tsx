@@ -2389,28 +2389,28 @@ function ProductFormModal({ product, categories, vendors, onClose, onSaved }: Pr
   };
 
   return (
-    <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-card border border-border/80 rounded-3xl max-w-3xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[150] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 overflow-hidden">
+      <div className="bg-card border-t sm:border border-border/80 rounded-t-3xl sm:rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col h-[94vh] sm:h-auto sm:max-h-[90vh] animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-2 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border/40 bg-secondary/20">
+        <div className="flex items-center justify-between px-4 py-3.5 sm:px-6 sm:py-4 border-b border-border/40 bg-secondary/20 flex-shrink-0">
           <div>
-            <h2 className="text-lg font-black text-foreground">
+            <h2 className="text-base sm:text-lg font-black text-foreground">
               {isEdit ? 'Edit Product' : 'Add New Product'}
             </h2>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] sm:text-xs text-muted-foreground">
               {isEdit ? `Updating ${product?.title}` : 'Fill in product information for Neon database'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground"
+            className="p-1.5 sm:p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1 text-xs sm:text-sm">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5 sm:space-y-6 overflow-y-auto flex-1 text-xs sm:text-sm">
           {error && (
             <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -2740,19 +2740,19 @@ function ProductFormModal({ product, categories, vendors, onClose, onSaved }: Pr
             </div>
           </div>
 
-          {/* Footer Submit */}
-          <div className="flex items-center justify-end gap-3 pt-6 border-t border-border/40">
+          {/* Sticky Footer Submit for Small Screens */}
+          <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3.5 pb-2 sm:pt-4 sm:pb-3 border-t border-border/60 -mx-4 px-4 sm:-mx-6 sm:px-6 mt-4 flex items-center justify-between gap-3 shadow-lg">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-border text-xs font-bold text-foreground hover:bg-secondary transition-all"
+              className="px-4 sm:px-5 py-2.5 rounded-xl border border-border text-xs font-bold text-foreground hover:bg-secondary transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 dark:bg-white dark:text-black"
+              className="px-5 sm:px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 dark:bg-white dark:text-black"
             >
               {isSubmitting ? 'Saving to Neon...' : isEdit ? 'Save Changes' : 'Create Product'}
             </button>
