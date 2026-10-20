@@ -77,9 +77,12 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-primary">Phone / WhatsApp</h3>
-                  <a href="tel:+923001234567" className="text-muted-foreground hover:text-primary transition-colors">
-                    +92 300 1234567
-                  </a>
+                  <div className="flex flex-col gap-1">
+                    <a href="https://wa.me/923128506017" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-emerald-500 font-medium transition-colors flex items-center gap-1.5">
+                      +92 312 8506017
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">Chat</span>
+                    </a>
+                  </div>
                 </div>
               </div>
 

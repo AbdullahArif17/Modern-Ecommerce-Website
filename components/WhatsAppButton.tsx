@@ -11,7 +11,7 @@ interface WhatsAppButtonProps {
 }
 
 export function WhatsAppButton({
-  phoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '923001234567',
+  phoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '923128506017',
   defaultMessage = 'Hello JTech Mart, I have an inquiry about your products.',
 }: WhatsAppButtonProps) {
   const pathname = usePathname();
